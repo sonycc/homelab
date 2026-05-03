@@ -1,0 +1,79 @@
+```gitignore
+# =========================
+# 🔐 Secrets & env files
+# =========================
+.env
+.env.*
+
+!.env.example
+
+# =========================
+# 🗄️ Data directories (very important)
+# =========================
+data/
+*/data/
+../../data/
+
+# Database files (extra safety)
+*.db
+*.sql
+
+!*.dummy.sql
+!*.seed.sql
+
+# =========================
+# 📦 Docker / runtime junk
+# =========================
+*.log
+logs/
+*.pid
+
+# =========================
+# 🧠 OS / editor junk
+# =========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# =========================
+# 🔑 SSH / keys (just in case)
+# =========================
+*.pem
+*.key
+*.crt
+
+# =========================
+# 📦 Backup files
+# =========================
+*.bak
+*.backup
+*.old
+
+# =========================
+# 🧪 Temporary files
+# =========================
+tmp/
+temp/
+
+# =========================
+# 🐳 Docker overrides (optional choice)
+# =========================
+docker-compose.override.yml
+
+# =========================
+# 📄 Terraform / infra (future-proofing)
+# =========================
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# =========================
+# 📁 Node / misc (if you add tools later)
+# =========================
+node_modules/
+dist/
+build/
+```
