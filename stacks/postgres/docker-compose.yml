@@ -24,6 +24,54 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-backup:
+    image: postgres:18.3-alpine3.23
+    container_name: postgres-backup
+    restart: unless-stopped
+
+    depends_on:
+      - postgres
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+      BACKUP_DIR: ${BACKUP_DIR}
+
+      BACKUP_HOURLY_KEEP: ${BACKUP_HOURLY_KEEP}
+      BACKUP_HOURLY_SCHEDULE: ${BACKUP_HOURLY_SCHEDULE}
+
+      BACKUP_DAILY_KEEP: ${BACKUP_DAILY_KEEP}
+      BACKUP_DAILY_SCHEDULE: ${BACKUP_DAILY_SCHEDULE}
+
+      BACKUP_WEEKLY_KEEP: ${BACKUP_WEEKLY_KEEP}
+      BACKUP_WEEKLY_SCHEDULE: ${BACKUP_WEEKLY_SCHEDULE}
+
+      BACKUP_MONTHLY_KEEP: ${BACKUP_MONTHLY_KEEP}
+      BACKUP_MONTHLY_SCHEDULE: ${BACKUP_MONTHLY_SCHEDULE}
+
+    networks:
+      - homelab
+
+    volumes:
+      - ${BACKUP_DIR}:/backups
+      - ./backup.sh:/backup.sh
+
+    entrypoint: /bin/sh
+    command: -c "
+      printenv > /etc/environment &&
+
+      > /etc/crontabs/root &&
+
+      [ \"$BACKUP_HOURLY_KEEP\" -gt 0 ] && echo \"$BACKUP_HOURLY_SCHEDULE /backup.sh hourly\" >> /etc/crontabs/root || true
+      [ \"$BACKUP_DAILY_KEEP\" -gt 0 ] && echo \"$BACKUP_DAILY_SCHEDULE /backup.sh daily\" >> /etc/crontabs/root || true
+      [ \"$BACKUP_WEEKLY_KEEP\" -gt 0 ] && echo \"$BACKUP_WEEKLY_SCHEDULE /backup.sh weekly\" >> /etc/crontabs/root || true
+      [ \"$BACKUP_MONTHLY_KEEP\" -gt 0 ] && echo \"$BACKUP_MONTHLY_SCHEDULE /backup.sh monthly\" >> /etc/crontabs/root || true
+
+      crond -f
+      "
+
 volumes:
   postgres_data:
   
