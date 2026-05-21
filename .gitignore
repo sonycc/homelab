@@ -1,4 +1,8 @@
-```gitignore
+# =========================
+# 📝 Local notes
+# =========================
+TODO.md
+
 # =========================
 # 🔐 Secrets & env files
 # =========================
@@ -76,4 +80,3 @@ docker-compose.override.yml
 node_modules/
 dist/
 build/
-```
