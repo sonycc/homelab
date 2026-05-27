@@ -31,6 +31,13 @@ services:
         # SSH port as seen from outside the host
         gitlab_rails['gitlab_shell_ssh_port'] = ${GITLAB_SSH_PORT}
 
+        # Reduce memory usage
+        puma['worker_processes'] = 1
+        sidekiq['concurrency'] = 5
+        prometheus_monitoring['enable'] = false
+        grafana['enable'] = false
+        alertmanager['enable'] = false
+
     ports:
       - "${GITLAB_SSH_PORT}:22"
       - "${GITLAB_HTTP_PORT:-8080}:80"
