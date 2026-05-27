@@ -53,6 +53,7 @@ services:
       GF_SERVER_ROOT_URL: https://monitoring.sxd.no
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning
     networks:
       - homelab
     healthcheck:
