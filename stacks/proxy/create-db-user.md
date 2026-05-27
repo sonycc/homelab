@@ -1,0 +1,5 @@
+CREATE USER nginx WITH PASSWORD 'strong_password_here';
+
+CREATE DATABASE nginx OWNER nginx;
+
+GRANT ALL PRIVILEGES ON DATABASE nginx TO nginx;

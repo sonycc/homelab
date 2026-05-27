@@ -1,0 +1,38 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - homelab
+
+  nginx:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
+    depends_on:
+      - cloudflared
+    ports:
+      - '81:81'     # Admin Web Port (local only)
+
+    environment:
+      TZ: "Europe/Oslo"
+      # Postgres parameters:
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: 5432
+      DB_POSTGRES_USER: ${NGINX_DB_USER}
+      DB_POSTGRES_PASSWORD: ${NGINX_DB_PASSWORD}
+      DB_POSTGRES_NAME: ${NGINX_DB_NAME}
+      # Uncomment this if IPv6 is not enabled on your host
+      DISABLE_IPV6: 'true'
+      
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+
+    networks:
+      - homelab
+
+
+networks:
+  homelab:
+    external: true
