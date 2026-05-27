@@ -1,18 +1,24 @@
 services:
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2025.4.2
     restart: unless-stopped
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      nginx:
+        condition: service_healthy
     networks:
       - homelab
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   nginx:
-    image: 'jc21/nginx-proxy-manager:latest'
+    image: 'jc21/nginx-proxy-manager:2.12.3'
     restart: unless-stopped
-    depends_on:
-      - cloudflared
     ports:
-      - '81:81'     # Admin Web Port (local only)
+      - '127.0.0.1:81:81'     # Admin Web Port (local only)
 
     environment:
       TZ: "Europe/Oslo"
@@ -32,6 +38,12 @@ services:
 
     networks:
       - homelab
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:81/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 
 networks:
