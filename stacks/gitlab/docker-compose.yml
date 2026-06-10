@@ -1,6 +1,6 @@
 services:
   gitlab:
-    image: gitlab/gitlab-ce:latest
+    image: gitlab/gitlab-ce:18.11.3-ce.0
     container_name: gitlab
     restart: unless-stopped
 
@@ -31,11 +31,13 @@ services:
         # SSH port as seen from outside the host
         gitlab_rails['gitlab_shell_ssh_port'] = ${GITLAB_SSH_PORT}
 
+        # Timezone
+        gitlab_rails['time_zone'] = 'Europe/Oslo'
+
         # Reduce memory usage
         puma['worker_processes'] = 1
         sidekiq['concurrency'] = 5
         prometheus_monitoring['enable'] = false
-        grafana['enable'] = false
         alertmanager['enable'] = false
 
     ports:
@@ -52,10 +54,36 @@ services:
 
     shm_size: '256m'
 
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/-/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 3m
+
+  gitlab-runner:
+    image: gitlab/gitlab-runner:v17.11.4
+    container_name: gitlab-runner
+    restart: unless-stopped
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    environment:
+      GITLAB_RUNNER_TOKEN: ${GITLAB_RUNNER_TOKEN}
+      GITLAB_INTERNAL_URL: ${GITLAB_INTERNAL_URL:-http://gitlab:80}
+    entrypoint: ["/entrypoint.sh"]
+    volumes:
+      - ./runner/entrypoint.sh:/entrypoint.sh:ro
+      - gitlab_runner_config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - homelab
+
 volumes:
   gitlab_config:
   gitlab_logs:
   gitlab_data:
+  gitlab_runner_config:
 
 networks:
   homelab:
