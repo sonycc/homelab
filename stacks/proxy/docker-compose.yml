@@ -8,12 +8,32 @@ services:
         condition: service_healthy
     networks:
       - homelab
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+        reservations:
+          memory: 32m
     healthcheck:
       test: ["CMD", "cloudflared", "tunnel", "info"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  # NPM proxy hosts are configured via the web UI (http://localhost:81).
+  # Configured hosts:
+  #   gitlab.sxd.no        → http://gitlab:80    (Block Exploits: on)
+  #   monitoring.sxd.no    → http://grafana:3000
+  #   registry.sxd.no      → http://gitlab:5050  (GitLab container registry — add this)
+  #
+  # Cloudflare tunnel public hostnames (Zero Trust dashboard):
+  #   gitlab.sxd.no        → http://nginx:80
+  #   npm.sxd.no           → http://nginx:81     (protect with a CF Access policy)
+  #   monitoring.sxd.no    → http://grafana:3000  (bypasses NPM — consider http://nginx:80 instead)
+  #   registry.sxd.no      → http://nginx:80     (add this)
   nginx:
     image: 'jc21/nginx-proxy-manager:2.12.3'
     restart: unless-stopped
@@ -30,7 +50,7 @@ services:
       DB_POSTGRES_NAME: ${NGINX_DB_NAME}
       # Uncomment this if IPv6 is not enabled on your host
       DISABLE_IPV6: 'true'
-      
+
     volumes:
       - ./data:/data
       - ./letsencrypt:/etc/letsencrypt
@@ -38,6 +58,17 @@ services:
 
     networks:
       - homelab
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+        reservations:
+          memory: 64m
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:81/api/"]
