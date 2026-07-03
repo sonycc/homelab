@@ -1,6 +1,6 @@
 services:
   cloudflared:
-    image: cloudflare/cloudflared:2026.5.0
+    image: cloudflare/cloudflared:2026.6.1
     restart: unless-stopped
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
@@ -36,8 +36,13 @@ services:
   #   monitoring.sxd.no    → http://nginx:80
   #   registry.sxd.no      → http://nginx:80
   nginx:
-    image: 'jc21/nginx-proxy-manager:2.12.3'
+    image: 'jc21/nginx-proxy-manager:2.15.1'
     restart: unless-stopped
+
+    # Admin UI bound to localhost only — not exposed on the LAN. Public traffic
+    # still enters solely via the cloudflared tunnel → nginx:80.
+    ports:
+      - "127.0.0.1:81:81"
 
     environment:
       TZ: "Europe/Oslo"
@@ -55,8 +60,14 @@ services:
       - ./letsencrypt:/etc/letsencrypt
       - ./nginx.conf:/etc/nginx/nginx.conf
 
+    # Split-horizon: internal containers (incl. CI job containers via dind) resolve
+    # the public hostnames to NPM over the homelab network, so they hit the same
+    # HTTPS endpoint + valid cert as external clients — no internal/external URL split.
     networks:
-      - homelab
+      homelab:
+        aliases:
+          - gitlab.sxd.no
+          - registry.sxd.no
 
     security_opt:
       - no-new-privileges:true

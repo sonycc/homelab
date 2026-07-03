@@ -17,6 +17,8 @@ TODO.md
 data/
 */data/
 ../../data/
+letsencrypt/
+*/letsencrypt/
 
 # Database files (extra safety)
 *.db

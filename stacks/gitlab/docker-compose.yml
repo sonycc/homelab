@@ -1,10 +1,14 @@
 services:
   gitlab:
-    image: gitlab/gitlab-ce:19.0.2-ce.0
+    image: gitlab/gitlab-ce:19.1.1-ce.0
     container_name: gitlab
     restart: unless-stopped
 
-    hostname: ${GITLAB_HOSTNAME}
+    # Container hostname is 'gitlab' (not the public FQDN) so it doesn't collide
+    # with NPM's gitlab.sxd.no network alias — internal clients must resolve that
+    # name to NPM (:443 TLS), not to this container. Public identity is set by
+    # external_url below, not by this hostname.
+    hostname: gitlab
 
     environment:
       GITLAB_OMNIBUS_CONFIG: |
@@ -40,8 +44,10 @@ services:
         prometheus_monitoring['enable'] = false
         alertmanager['enable'] = false
 
-        # Container registry — served on port 5050, TLS terminated by NPM
-        registry_external_url 'https://registry.${GITLAB_HOSTNAME}'
+        # Container registry — advertised at registry.sxd.no (must match the NPM
+        # proxy host + Cloudflare tunnel hostname). Internal nginx listens on 5050;
+        # NPM terminates TLS and proxies registry.sxd.no → gitlab:5050.
+        registry_external_url 'https://${GITLAB_REGISTRY_HOSTNAME}'
         registry_nginx['listen_port'] = 5050
         registry_nginx['listen_https'] = false
 
@@ -75,42 +81,41 @@ services:
       retries: 5
       start_period: 3m
 
-  # H1 (open): The host Docker socket is mounted here, giving CI jobs potential
-  # root access to the host. Options to close it:
-  #   - tecnativa/docker-socket-proxy: filtered TCP proxy in front of the socket
-  #   - rootless Docker on the host + userns_remap on the daemon
-  gitlab-runner:
-    image: gitlab/gitlab-runner:v17.11.4
-    container_name: gitlab-runner
+  dind:
+    image: docker:29.6.1-dind
+    container_name: dind
     restart: unless-stopped
-    depends_on:
-      gitlab:
-        condition: service_healthy
+    privileged: true
     environment:
-      GITLAB_RUNNER_TOKEN: ${GITLAB_RUNNER_TOKEN}
-      GITLAB_INTERNAL_URL: ${GITLAB_INTERNAL_URL:-http://gitlab:80}
-    entrypoint: ["/entrypoint.sh"]
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_SAN: DNS:dind
     volumes:
-      - ./runner/entrypoint.sh:/entrypoint.sh:ro
-      - gitlab_runner_config:/etc/gitlab-runner
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /data/docker/gitlab-runner/certs:/certs
     networks:
       - homelab
-    security_opt:
-      - no-new-privileges:true
-    deploy:
-      resources:
-        limits:
-          memory: 2g
-          cpus: "1.0"
-        reservations:
-          memory: 256m
-    healthcheck:
-      test: ["CMD", "gitlab-runner", "verify", "--delete"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+
+  gitlab-runner:
+    image: gitlab/gitlab-runner:alpine3.21-v19.1.1
+    restart: unless-stopped
+    depends_on:
+      - gitlab
+      - dind
+    environment:
+      #docker dind service auth
+      DOCKER_HOST: tcp://dind:2376
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_CERT_PATH: /certs/client
+
+      #Gitlab runner registration
+      GITLAB_RUNNER_TOKEN: ${GITLAB_RUNNER_TOKEN}
+      GITLAB_INTERNAL_URL: ${GITLAB_INTERNAL_URL}
+    entrypoint: ["/entrypoint.sh"]
+    volumes:
+      - /data/docker/gitlab-runner/certs:/certs:ro
+      - ./runner/entrypoint.sh:/entrypoint.sh:ro
+      - gitlab_runner_config:/etc/gitlab-runner
+    networks:
+      - homelab
 
 volumes:
   gitlab_config:
