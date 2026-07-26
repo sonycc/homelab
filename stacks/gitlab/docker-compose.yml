@@ -5,14 +5,14 @@ services:
     restart: unless-stopped
 
     # Container hostname is 'gitlab' (not the public FQDN) so it doesn't collide
-    # with NPM's gitlab.sxd.no network alias — internal clients must resolve that
+    # with NPM's gitlab.<domain> network alias — internal clients must resolve that
     # name to NPM (:443 TLS), not to this container. Public identity is set by
     # external_url below, not by this hostname.
     hostname: gitlab
 
     environment:
       GITLAB_OMNIBUS_CONFIG: |
-        external_url 'https://${GITLAB_HOSTNAME}'
+        external_url 'https://gitlab.${DOMAIN:?DOMAIN not set}'
 
         # Disable bundled PostgreSQL — use the shared postgres stack
         postgresql['enable'] = false
@@ -45,10 +45,10 @@ services:
         prometheus_monitoring['enable'] = false
         alertmanager['enable'] = false
 
-        # Container registry — advertised at registry.sxd.no (must match the NPM
+        # Container registry — advertised at registry.<domain> (must match the NPM
         # proxy host + Cloudflare tunnel hostname). Internal nginx listens on 5050;
-        # NPM terminates TLS and proxies registry.sxd.no → gitlab:5050.
-        registry_external_url 'https://${GITLAB_REGISTRY_HOSTNAME}'
+        # NPM terminates TLS and proxies that hostname → gitlab:5050.
+        registry_external_url 'https://registry.${DOMAIN:?DOMAIN not set}'
         registry_nginx['listen_port'] = 5050
         registry_nginx['listen_https'] = false
 

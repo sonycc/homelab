@@ -26,15 +26,22 @@ services:
   # All public traffic enters via the cloudflared tunnel → nginx:80.
   # nginx has no host-level port bindings; it is only reachable via the Docker network.
   #
+  # ${DOMAIN} below is the apex domain from .env — the real hostnames are
+  # gitlab.<domain>, monitoring.<domain> and so on.
+  #
   # NPM proxy hosts (configured in the UI):
-  #   gitlab.sxd.no        → http://gitlab:80    (Block Exploits: on)
-  #   monitoring.sxd.no    → http://grafana:3000
-  #   registry.sxd.no      → http://gitlab:5050
+  #   gitlab.${DOMAIN}      → http://gitlab:80    (Block Exploits: on)
+  #   monitoring.${DOMAIN}  → http://grafana:3000
+  #   registry.${DOMAIN}    → http://gitlab:5050
+  #   home.${DOMAIN}        → http://homeassistant:8123  (Websockets Support: on)
+  #   wud.${DOMAIN}         → http://wud:3000
   #
   # Cloudflare tunnel public hostnames (Zero Trust dashboard):
-  #   gitlab.sxd.no        → http://nginx:80
-  #   monitoring.sxd.no    → http://nginx:80
-  #   registry.sxd.no      → http://nginx:80
+  #   gitlab.${DOMAIN}      → http://nginx:80
+  #   monitoring.${DOMAIN}  → http://nginx:80
+  #   registry.${DOMAIN}    → http://nginx:80
+  #   home.${DOMAIN}        → http://nginx:80
+  #   wud.${DOMAIN}         → http://nginx:80
   nginx:
     image: 'jc21/nginx-proxy-manager:2.15.1'
     restart: unless-stopped
@@ -66,8 +73,8 @@ services:
     networks:
       homelab:
         aliases:
-          - gitlab.sxd.no
-          - registry.sxd.no
+          - gitlab.${DOMAIN:?DOMAIN not set}
+          - registry.${DOMAIN:?DOMAIN not set}
 
     security_opt:
       - no-new-privileges:true

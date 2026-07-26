@@ -18,9 +18,9 @@ services:
       WUD_UI_BASE_URL: /
       WUD_LOG_LEVEL: ${WUD_LOG_LEVEL:-info}
       # --- GitLab OIDC (auth_name = "gitlab") ---
-      # Callback URL to register in GitLab: ${WUD_PUBLIC_URL}/auth/oidc/gitlab/cb
-      WUD_PUBLIC_URL: ${WUD_PUBLIC_URL}
-      WUD_AUTH_OIDC_GITLAB_DISCOVERY: ${GITLAB_DISCOVERY_URL}
+      # Callback URL to register in GitLab: https://wud.<domain>/auth/oidc/gitlab/cb
+      WUD_PUBLIC_URL: https://wud.${DOMAIN:?DOMAIN not set}
+      WUD_AUTH_OIDC_GITLAB_DISCOVERY: https://gitlab.${DOMAIN:?DOMAIN not set}/.well-known/openid-configuration
       WUD_AUTH_OIDC_GITLAB_CLIENTID: ${GITLAB_CLIENT_ID}
       WUD_AUTH_OIDC_GITLAB_CLIENTSECRET: ${GITLAB_CLIENT_SECRET}
       WUD_AUTH_OIDC_GITLAB_USERNAMECLAIM: preferred_username

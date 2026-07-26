@@ -53,7 +53,7 @@ Config files exist in `stacks/proxy/fail2ban/` but the service is not in the com
 
 ### L7 — `test.local` proxy host missing exploit-blocking include
 
-`stacks/proxy/data/nginx/proxy_host/1.conf` does not include `conf.d/include/block-exploits.conf`, unlike the `gitlab.sxd.no` proxy host. Either add the include or confirm this host is not reachable externally.
+`stacks/proxy/data/nginx/proxy_host/1.conf` does not include `conf.d/include/block-exploits.conf`, unlike the `gitlab.<domain>` proxy host. Either add the include or confirm this host is not reachable externally.
 
 ---
 
@@ -75,8 +75,8 @@ The GitLab built-in container registry is now enabled. Changes made:
 - `stacks/gitlab/.env.example` — added `GITLAB_REGISTRY_PORT=5050`
 
 **Remaining manual steps (UI-only, cannot be automated):**
-1. **NPM:** Add proxy host `registry.sxd.no → http://gitlab:5050` in the Nginx Proxy Manager UI (http://localhost:81)
-2. **Cloudflare:** Add public hostname `registry.sxd.no → http://nginx:80` in the Zero Trust dashboard
+1. **NPM:** Add proxy host `registry.<domain> → http://gitlab:5050` in the Nginx Proxy Manager UI (http://localhost:81)
+2. **Cloudflare:** Add public hostname `registry.<domain> → http://nginx:80` in the Zero Trust dashboard
 
 Both steps are documented as comments in `stacks/proxy/docker-compose.yml`.
 
