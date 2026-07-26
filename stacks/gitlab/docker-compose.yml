@@ -27,6 +27,7 @@ services:
         # Let Nginx Proxy Manager handle TLS termination
         nginx['listen_port'] = 80
         nginx['listen_https'] = false
+        nginx['client_max_body_size'] = '0'
         nginx['proxy_set_headers'] = {
           "X-Forwarded-Proto" => "https",
           "X-Forwarded-Ssl" => "on"
