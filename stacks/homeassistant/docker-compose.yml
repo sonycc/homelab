@@ -2,13 +2,19 @@
 #
 # Ingress follows the same path as every other service: cloudflared → nginx (NPM) → here.
 #
-# ${DOMAIN} is the apex domain from .env; HA is served at home.<domain>.
+# ${DOMAIN} is the apex domain from .env; HA is served at ha.<domain>.
 #
 # NPM proxy host (configured in the UI, http://localhost:81):
-#   home.${DOMAIN} → http://homeassistant:8123  (Websockets Support: ON — the UI is
-#                                                websocket-driven and won't load without it)
+#   ha.${DOMAIN} → http://homeassistant:8123
+#     - Websockets Support: ON — the frontend is websocket-driven and will not load
+#       without it. NPM's proxy.conf sets no Upgrade/Connection headers on its own.
+#     - Block Exploits: ON
+#     - SSL: the existing *.<domain> wildcard cert, Force SSL ON, and
+#       "Trust forwarded headers" ON. That last one matters: cloudflared reaches
+#       nginx on port 80, so without it force-ssl.conf sees $scheme=http and
+#       301-redirects a request that already arrived over HTTPS, in a loop.
 # Cloudflare tunnel public hostname (Zero Trust dashboard):
-#   home.${DOMAIN} → http://nginx:80
+#   ha.${DOMAIN} → http://nginx:80   (port 80, not 81 — 81 is NPM's admin UI)
 #
 # Bridge networking (below) means local device auto-discovery — mDNS/zeroconf, SSDP,
 # HomeKit, Chromecast — does not work, since broadcast traffic never reaches the
@@ -31,7 +37,7 @@ services:
 
       # Public URL HA advertises in notifications, webhooks and the companion app.
       # Read by configuration.yaml via `!env_var`.
-      HA_EXTERNAL_URL: https://home.${DOMAIN:?DOMAIN not set}
+      HA_EXTERNAL_URL: https://ha.${DOMAIN:?DOMAIN not set}
 
       # Recorder connection string, assembled from the parts in .env so the password
       # lives in exactly one place. Read by configuration.yaml via `!env_var`.

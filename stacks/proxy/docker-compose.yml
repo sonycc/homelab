@@ -33,14 +33,14 @@ services:
   #   gitlab.${DOMAIN}      → http://gitlab:80    (Block Exploits: on)
   #   monitoring.${DOMAIN}  → http://grafana:3000
   #   registry.${DOMAIN}    → http://gitlab:5050
-  #   home.${DOMAIN}        → http://homeassistant:8123  (Websockets Support: on)
+  #   ha.${DOMAIN}          → http://homeassistant:8123  (Websockets Support: on)
   #   wud.${DOMAIN}         → http://wud:3000
   #
   # Cloudflare tunnel public hostnames (Zero Trust dashboard):
   #   gitlab.${DOMAIN}      → http://nginx:80
   #   monitoring.${DOMAIN}  → http://nginx:80
   #   registry.${DOMAIN}    → http://nginx:80
-  #   home.${DOMAIN}        → http://nginx:80
+  #   ha.${DOMAIN}          → http://nginx:80
   #   wud.${DOMAIN}         → http://nginx:80
   nginx:
     image: 'jc21/nginx-proxy-manager:2.15.1'
