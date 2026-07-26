@@ -1,14 +1,18 @@
 services:
   gitlab:
-    image: gitlab/gitlab-ce:latest
+    image: gitlab/gitlab-ce:19.1.1-ce.0
     container_name: gitlab
     restart: unless-stopped
 
-    hostname: ${GITLAB_HOSTNAME}
+    # Container hostname is 'gitlab' (not the public FQDN) so it doesn't collide
+    # with NPM's gitlab.<domain> network alias — internal clients must resolve that
+    # name to NPM (:443 TLS), not to this container. Public identity is set by
+    # external_url below, not by this hostname.
+    hostname: gitlab
 
     environment:
       GITLAB_OMNIBUS_CONFIG: |
-        external_url 'https://${GITLAB_HOSTNAME}'
+        external_url 'https://gitlab.${DOMAIN:?DOMAIN not set}'
 
         # Disable bundled PostgreSQL — use the shared postgres stack
         postgresql['enable'] = false
@@ -23,6 +27,7 @@ services:
         # Let Nginx Proxy Manager handle TLS termination
         nginx['listen_port'] = 80
         nginx['listen_https'] = false
+        nginx['client_max_body_size'] = '0'
         nginx['proxy_set_headers'] = {
           "X-Forwarded-Proto" => "https",
           "X-Forwarded-Ssl" => "on"
@@ -31,16 +36,26 @@ services:
         # SSH port as seen from outside the host
         gitlab_rails['gitlab_shell_ssh_port'] = ${GITLAB_SSH_PORT}
 
+        # Timezone
+        gitlab_rails['time_zone'] = 'Europe/Oslo'
+
         # Reduce memory usage
         puma['worker_processes'] = 1
         sidekiq['concurrency'] = 5
         prometheus_monitoring['enable'] = false
-        grafana['enable'] = false
         alertmanager['enable'] = false
+
+        # Container registry — advertised at registry.<domain> (must match the NPM
+        # proxy host + Cloudflare tunnel hostname). Internal nginx listens on 5050;
+        # NPM terminates TLS and proxies that hostname → gitlab:5050.
+        registry_external_url 'https://registry.${DOMAIN:?DOMAIN not set}'
+        registry_nginx['listen_port'] = 5050
+        registry_nginx['listen_https'] = false
 
     ports:
       - "${GITLAB_SSH_PORT}:22"
       - "${GITLAB_HTTP_PORT:-8080}:80"
+      - "${GITLAB_REGISTRY_PORT:-5050}:5050"
 
     volumes:
       - gitlab_config:/etc/gitlab
@@ -52,10 +67,62 @@ services:
 
     shm_size: '256m'
 
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+          cpus: "2.0"
+        reservations:
+          memory: 1g
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/-/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 3m
+
+  dind:
+    image: docker:29.6.1-dind
+    container_name: dind
+    restart: unless-stopped
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_SAN: DNS:dind
+    volumes:
+      - /data/docker/gitlab-runner/certs:/certs
+    networks:
+      - homelab
+
+  gitlab-runner:
+    image: gitlab/gitlab-runner:alpine3.21-v19.1.1
+    restart: unless-stopped
+    depends_on:
+      - gitlab
+      - dind
+    environment:
+      #docker dind service auth
+      DOCKER_HOST: tcp://dind:2376
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_CERT_PATH: /certs/client
+
+      #Gitlab runner registration
+      GITLAB_RUNNER_TOKEN: ${GITLAB_RUNNER_TOKEN}
+      GITLAB_INTERNAL_URL: ${GITLAB_INTERNAL_URL}
+    entrypoint: ["/entrypoint.sh"]
+    volumes:
+      - /data/docker/gitlab-runner/certs:/certs:ro
+      - ./runner/entrypoint.sh:/entrypoint.sh:ro
+      - gitlab_runner_config:/etc/gitlab-runner
+    networks:
+      - homelab
+
 volumes:
   gitlab_config:
   gitlab_logs:
   gitlab_data:
+  gitlab_runner_config:
 
 networks:
   homelab:

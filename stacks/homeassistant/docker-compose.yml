@@ -1,0 +1,83 @@
+# Home Assistant — home automation hub.
+#
+# Ingress follows the same path as every other service: cloudflared → nginx (NPM) → here.
+#
+# ${DOMAIN} is the apex domain from .env; HA is served at home.<domain>.
+#
+# NPM proxy host (configured in the UI, http://localhost:81):
+#   home.${DOMAIN} → http://homeassistant:8123  (Websockets Support: ON — the UI is
+#                                                websocket-driven and won't load without it)
+# Cloudflare tunnel public hostname (Zero Trust dashboard):
+#   home.${DOMAIN} → http://nginx:80
+#
+# Bridge networking (below) means local device auto-discovery — mDNS/zeroconf, SSDP,
+# HomeKit, Chromecast — does not work, since broadcast traffic never reaches the
+# container. Integrations added by IP/hostname work normally. If discovery is needed,
+# swap the `networks` + `ports` blocks for `network_mode: host`; note that this drops
+# HA off the `homelab` network, so NPM must then proxy to the host gateway instead of
+# to `homeassistant:8123`.
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2026.7.4
+    container_name: homeassistant
+    restart: unless-stopped
+
+    # Local-only binding for direct access / onboarding before NPM is set up.
+    ports:
+      - "127.0.0.1:${HA_PORT:-8123}:8123"
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+
+      # Public URL HA advertises in notifications, webhooks and the companion app.
+      # Read by configuration.yaml via `!env_var`.
+      HA_EXTERNAL_URL: https://home.${DOMAIN:?DOMAIN not set}
+
+      # Recorder connection string, assembled from the parts in .env so the password
+      # lives in exactly one place. Read by configuration.yaml via `!env_var`.
+      # A password containing @ : / ? # must be percent-encoded here.
+      HA_DB_URL: postgresql://${HA_DB_USER}:${HA_DB_PASSWORD}@postgres:5432/${HA_DB_NAME}
+
+    volumes:
+      # Bind mount rather than a named volume so configuration.yaml and the UI-managed
+      # automation/script/scene files stay in git. Everything else HA writes here
+      # (.storage, secrets.yaml, logs, deps) is gitignored.
+      - ./config:/config
+
+      # Uncomment for Bluetooth integrations (needs dbus on the host):
+      # - /run/dbus:/run/dbus:ro
+
+    # Uncomment for a Zigbee/Z-Wave USB coordinator, adjusting the device path
+    # (`ls -l /dev/serial/by-id/` on the host to find the stable name):
+    # devices:
+    #   - /dev/serial/by-id/usb-XXXX:/dev/ttyUSB0
+
+    networks:
+      - homelab
+
+    security_opt:
+      - no-new-privileges:true
+
+    # HA publishes floating tags (stable, beta, dev, landingpage) alongside releases;
+    # restrict WUD to real version tags so it only reports genuine upgrades.
+    labels:
+      wud.tag.include: '^\d{4}\.\d+\.\d+$'
+
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.0"
+        reservations:
+          memory: 512m
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8123/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+networks:
+  homelab:
+    external: true

@@ -1,0 +1,57 @@
+services:
+  wud:
+    image: getwud/wud:8.3.0
+    container_name: wud
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - wud_store:/store
+    environment:
+      # Watch the local Docker host
+      WUD_WATCHER_LOCAL_SOCKET: /var/run/docker.sock
+      WUD_WATCHER_LOCAL_CRON: ${WUD_CRON:-0 */6 * * *}
+      WUD_WATCHER_LOCAL_WATCHBYDEFAULT: ${WUD_WATCHBYDEFAULT:-true}
+      # Public URL (served via NPM/Cloudflare)
+      WUD_SERVER_FEATURE_DELETE: "false"
+      WUD_UI_BASE_URL: /
+      WUD_LOG_LEVEL: ${WUD_LOG_LEVEL:-info}
+      # --- GitLab OIDC (auth_name = "gitlab") ---
+      # Callback URL to register in GitLab: https://wud.<domain>/auth/oidc/gitlab/cb
+      WUD_PUBLIC_URL: https://wud.${DOMAIN:?DOMAIN not set}
+      WUD_AUTH_OIDC_GITLAB_DISCOVERY: https://gitlab.${DOMAIN:?DOMAIN not set}/.well-known/openid-configuration
+      WUD_AUTH_OIDC_GITLAB_CLIENTID: ${GITLAB_CLIENT_ID}
+      WUD_AUTH_OIDC_GITLAB_CLIENTSECRET: ${GITLAB_CLIENT_SECRET}
+      WUD_AUTH_OIDC_GITLAB_USERNAMECLAIM: preferred_username
+      WUD_AUTH_OIDC_GITLAB_REDIRECT: "true"
+      # --- Discord notifications ---
+      # One message listing every update found in a scan, rather than one per container.
+      WUD_TRIGGER_DISCORD_HOMELAB_URL: ${DISCORD_WEBHOOK_URL}
+      WUD_TRIGGER_DISCORD_HOMELAB_BOTUSERNAME: WUD
+      WUD_TRIGGER_DISCORD_HOMELAB_MODE: batch
+      WUD_TRIGGER_DISCORD_HOMELAB_ONCE: "true"
+      WUD_TRIGGER_DISCORD_HOMELAB_THRESHOLD: ${DISCORD_THRESHOLD:-all}
+    networks:
+      - homelab
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+        reservations:
+          memory: 64m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  wud_store:
+
+networks:
+  homelab:
+    external: true

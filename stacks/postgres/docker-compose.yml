@@ -9,14 +9,24 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
 
-    ports:
-      - "5432:5432"
-      
+    #No ports block — all consumers use internal Docker DNS (postgres:5432)
+
     networks:
       - homelab
-      
+
     volumes:
       - postgres_data:/var/lib/postgresql
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+        reservations:
+          memory: 256m
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -30,7 +40,8 @@ services:
     restart: unless-stopped
 
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -56,12 +67,21 @@ services:
 
     volumes:
       - ${BACKUP_DIR}:/backups
-      - ./backup.sh:/backup.sh
+      - ./backup.sh:/backup.sh:ro
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+        reservations:
+          memory: 64m
 
     entrypoint: /bin/sh
     command: -c "
-      printenv > /etc/environment &&
-
       > /etc/crontabs/root &&
 
       [ \"$BACKUP_HOURLY_KEEP\" -gt 0 ] && echo \"$BACKUP_HOURLY_SCHEDULE /backup.sh hourly\" >> /etc/crontabs/root || true
@@ -74,7 +94,7 @@ services:
 
 volumes:
   postgres_data:
-  
+
 networks:
   homelab:
     external: true
