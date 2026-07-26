@@ -97,9 +97,15 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: https://monitoring.${DOMAIN:?DOMAIN not set}
+      # Grafana logs only to stdout by default, which fail2ban cannot tail.
+      # "console file" keeps `docker logs grafana` working while also writing
+      # /var/log/grafana/grafana.log for the grafana-auth jail in the proxy stack.
+      GF_LOG_MODE: "console file"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning
+      # Mounted read-only into the fail2ban container as monitoring_grafana_logs.
+      - grafana_logs:/var/log/grafana
     networks:
       - homelab
     security_opt:
@@ -120,6 +126,7 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  grafana_logs:
 
 networks:
   homelab:
