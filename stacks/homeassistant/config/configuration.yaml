@@ -1,0 +1,34 @@
+# Home Assistant base configuration — hand-maintained and version-controlled.
+# Everything else in this directory is runtime state written by HA and is gitignored.
+
+# Standard bundle of integrations (frontend, history, logbook, mobile_app, energy, ...).
+default_config:
+
+# HA sits behind NPM, which sits behind cloudflared. Without trusting the proxy, every
+# request looks like it came from the nginx container: real client IPs are lost and
+# login-attempt banning would lock out the proxy itself.
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    # The `homelab` bridge subnet. If the network is ever recreated, re-check with:
+    #   docker network inspect homelab --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+    - 172.21.0.0/16
+
+homeassistant:
+  # Built from DOMAIN in .env and passed in by the compose file.
+  external_url: !env_var HA_EXTERNAL_URL
+  # Same URL internally — the public hostname resolves on the LAN too, so browsers
+  # and the companion app use one address in both places.
+  internal_url: !env_var HA_EXTERNAL_URL
+
+# State history in the shared postgres stack, like grafana and nginx-proxy-manager.
+# Requires the role/database from create-db-user.md to exist first.
+# Comment this block out to fall back to the bundled SQLite db in this directory.
+recorder:
+  db_url: !env_var HA_DB_URL
+  purge_keep_days: 30
+
+# The UI editors read and write these files; they must exist for the editors to work.
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

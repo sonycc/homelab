@@ -28,6 +28,18 @@ letsencrypt/
 !*.seed.sql
 
 # =========================
+# 🏠 Home Assistant config dir
+# =========================
+# Only the hand-maintained YAML is tracked. Everything HA writes at runtime —
+# .storage (auth tokens, entity/device registry), secrets.yaml, logs, deps/,
+# custom_components/ — stays local.
+stacks/homeassistant/config/*
+!stacks/homeassistant/config/configuration.yaml
+!stacks/homeassistant/config/automations.yaml
+!stacks/homeassistant/config/scripts.yaml
+!stacks/homeassistant/config/scenes.yaml
+
+# =========================
 # 📦 Docker / runtime junk
 # =========================
 *.log
