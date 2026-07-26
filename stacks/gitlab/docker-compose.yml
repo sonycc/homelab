@@ -33,6 +33,15 @@ services:
           "X-Forwarded-Ssl" => "on"
         }
 
+        # Without this, Rails treats the reverse proxy as the client and logs
+        # "remote_ip":"172.21.0.2" (nginx) on every request — the CF-Connecting-IP
+        # header reaches GitLab, but nothing tells it that header is trustworthy.
+        # That breaks anything keyed on client identity: rate limiting, the abuse
+        # dashboard, audit events, and in particular the fail2ban gitlab-auth jail
+        # in the proxy stack, which would otherwise ban nginx at the Cloudflare
+        # edge and take the whole homelab offline.
+        gitlab_rails['trusted_proxies'] = ['172.21.0.0/16']
+
         # SSH port as seen from outside the host
         gitlab_rails['gitlab_shell_ssh_port'] = ${GITLAB_SSH_PORT}
 
