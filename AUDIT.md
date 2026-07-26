@@ -3,7 +3,8 @@
 **Date:** 2026-06-25  
 **Branch:** feat/gitlab-runner  
 **Scope:** All stacks under `stacks/` — compose files, env examples, scripts, nginx configs, prometheus config  
-**Updated:** 2026-07-26 — added H2 for the new `pelican` stack
+**Updated:** 2026-07-26 — added H2 for the new `pelican` stack  
+**Updated:** 2026-07-27 — fail2ban deployed (L2); added M8–M15 and L9–L16 from the fail2ban and Home Assistant reviews
 
 ---
 
@@ -133,11 +134,191 @@ Unlike NPM's admin UI (`127.0.0.1:81`) and Home Assistant (`127.0.0.1:8123`), th
 
 ---
 
-### L8 — No image freshness tracking
+### L8 — Image freshness tracking ✓ resolved by WUD
 
-No mechanism surfaces when a running container image has a newer upstream release. Pinned tags go stale silently.
+The Diun recommendation is superseded: `stacks/wud/` deploys **What's Up Docker**, which watches the local socket on a cron and batches update notifications to Discord. It also filters HA's floating tags (`wud.tag.include` on the Home Assistant service) so only real version bumps are reported.
 
-**Fix:** Add **Diun** (Docker Image Update Notifier) to the monitoring stack — lightweight, read-only, sends notifications when a new digest is published for a tag.
+Still open from the original intent: images are pinned but nothing *acts* on a report, and the dashboard item in `TODO.md` (show current vs available version for every image) is unbuilt.
+
+---
+
+### M10 — Home Assistant's `.storage` is backed up nowhere
+
+**File:** `stacks/homeassistant/config/.storage/`, `.gitignore`
+
+Recorder history lives in postgres and is covered by `stacks/postgres/backup/backup.sh`. `.storage` is not — and that is where the irreplaceable state actually is: the user database and password hashes (`auth`), every issued refresh token and long-lived access token (`auth_provider.homeassistant`, `http.auth`), and the device, entity and area registries. It is correctly gitignored (it holds secrets) but nothing else copies it anywhere.
+
+Losing the host means re-onboarding Home Assistant from zero: recreating users, re-pairing both companion apps, re-authenticating every integration, and re-issuing any long-lived token — including the one the Prometheus scrape job would use. The recorder data that *is* backed up would be orphaned, since the entity registry that gives it meaning would be gone.
+
+**Fix:** the `backup` integration is already loaded (`default_config`). It needs a schedule and an off-box destination. Aligning it with the existing postgres backup target is the least new machinery.
+
+---
+
+### M11 — Home Assistant brute-force protection is off
+
+**File:** `stacks/homeassistant/config/configuration.yaml`
+
+The `http:` block sets `use_x_forwarded_for` and `trusted_proxies` — the hard part, and correct — but not `ip_ban_enabled` or `login_attempts_threshold`. So HA resolves real client IPs and then does nothing with them, on a login page reachable from the internet.
+
+The new `homeassistant-auth` fail2ban jail reduces but does not close this. The two are complementary and fail differently: fail2ban blocks at Cloudflare's edge and depends on the API token, the container running, and the log being parsed correctly; HA's own ban list blocks inside the process and keeps working when any of that breaks. Given how many ways the fail2ban path was found to fail silently (see L2), the in-process backstop is worth having.
+
+**Fix:** add `ip_ban_enabled: true` and `login_attempts_threshold: 5` to the `http:` block.
+
+---
+
+### M12 — fail2ban can read Home Assistant's auth store
+
+**File:** `stacks/proxy/docker-compose.yml`
+
+```yaml
+- ../homeassistant/config:/var/log/ha:ro
+```
+
+The `homeassistant-auth` jail needs `home-assistant.log`, but bind-mounting the single file breaks the moment HA rotates it and the inode changes, so the whole config directory is mounted instead. That directory contains `.storage/auth`.
+
+The result: a container whose entire job is parsing attacker-controlled log lines has read access to Home Assistant's user database and tokens. The mount is read-only and fail2ban holds no `NET_ADMIN`, so this is a confidentiality exposure reachable only through a parser escape, not a direct privilege path — but it is a wider grant than the job requires.
+
+**Fix options:**
+- Point HA's logger at a dedicated directory (`logger:` → a `logs/` subdirectory) and mount only that.
+- Or run a sidecar that tails the log into a separate volume, and mount that instead.
+
+Accepted deliberately for now; documented here so it is a decision rather than an oversight.
+
+---
+
+### M13 — A single false positive locks out every service at once
+
+**File:** `stacks/proxy/fail2ban/jail.d/homelab.conf`
+
+Cloudflare IP Access Rules are account-wide. A ban triggered by one jail on one hostname blocks that address from `gitlab`, `monitoring`, `ha`, `wud`, `registry` and `panel` simultaneously. This is not a misconfiguration — it is inherent to banning at the edge, which is the only place a ban is meaningful behind the tunnel (see L2).
+
+The blast radius is why thresholds in `jail.d/homelab.conf` are deliberately loose, why `ignoreip` lists the Docker subnet first, and why `grafana-auth` ships disabled.
+
+**Ways back in, in order of convenience** — worth knowing *before* they are needed:
+1. LAN: NPM admin UI on `127.0.0.1:81`, Home Assistant on `127.0.0.1:8123` — unaffected by edge bans.
+2. `docker exec fail2ban fail2ban-client unban <ip>`.
+3. Cloudflare dashboard → Security → WAF → Tools → IP Access Rules → delete the rule.
+
+Note that path 3 is the only one available from off-site, and it requires Cloudflare dashboard access — not the homelab.
+
+---
+
+### M14 — Ban failures are only visible in container logs
+
+**Files:** `stacks/proxy/fail2ban/bin/cloudflare.sh`, `stacks/wud/docker-compose.yml`
+
+The ban script inspects Cloudflare's response and writes `FAILED` with the API's own error text to stderr, which reaches `docker logs fail2ban`. Nothing reads that. The failure modes are all quiet:
+
+- Token revoked, deleted, or its permission changed
+- Cloudflare API contract changes (see L13, L14)
+- The 50,000-rule account cap reached
+- Network egress broken while the rest of the stack looks healthy
+
+In every case fail2ban keeps running, keeps reporting jails as active, and keeps its own "Currently banned" counters climbing, while nothing is actually blocked. This exact failure occurred during deployment and was invisible until the Cloudflare rule list was queried directly.
+
+**Fix:** `stacks/wud/` already holds a working `DISCORD_WEBHOOK_URL`. Wiring the script's failure path to the same webhook turns a silent months-long degradation into a message. Small change, and the highest-value follow-up on this list.
+
+---
+
+### M15 — No identity layer in front of publicly exposed services
+
+**Files:** `stacks/proxy/docker-compose.yml`, Cloudflare Zero Trust configuration
+
+`gitlab`, `monitoring`, `ha`, `wud`, `registry` and `panel` are all reachable from the public internet, each defended only by its own application login. The tunnel provides transport and hides the origin IP; it authenticates nobody.
+
+Cloudflare Access (Zero Trust) can place an identity gate in front of a hostname before the request ever reaches nginx, and is free for small user counts. It composes well with the fail2ban deployment: Access rejects unauthenticated requests at the edge, so brute-force traffic never reaches a login page and never needs banning.
+
+**Caveats worth weighing:** it complicates the Home Assistant companion app and any non-browser client (the GitLab runner, `git` over HTTPS, `docker login` to the registry), which need service tokens or a bypass policy. Applying it to `monitoring` and `wud` first — browser-only, low client complexity — captures most of the value with none of that friction.
+
+---
+
+### L9 — Home Assistant recorder records everything
+
+**File:** `stacks/homeassistant/config/configuration.yaml`
+
+`recorder:` sets `purge_keep_days: 30` with no `exclude:` filters. Harmless at the current six entities; it becomes a steadily growing postgres table once real devices exist, and it shares the instance with GitLab, Grafana and NPM.
+
+Cheaper to add filters before the device count grows than to prune afterwards.
+
+---
+
+### L10 — The homelab's egress address rotates
+
+Measured directly: `84.215.23.113` on 2026-07-26, `88.90.1.16` on 2026-07-27 — same path, same container, roughly 24 hours apart. Dynamic lease or ISP-side NAT pool.
+
+Consequences, all already accounted for but worth recording:
+
+- **Cloudflare API tokens must not use client-IP filtering.** This was tried and failed immediately with `code 10000 Authentication error`.
+- **The WAN address cannot be pinned in `ignoreip`.** A stale entry would protect an address the household no longer holds while leaving the current one bannable. The git-protocol exclusions in `npm-auth` and `gitlab-auth` are the real hairpin protection.
+- **Ban escalation buys less than it appears.** `bantime.maxtime = 7d` assumes an attacker keeps one address; on rotating consumer addressing, both sides move. Not worth retuning without real ban data, but do not read the 7-day figure as 7 days of protection.
+
+---
+
+### L11 — `grafana-auth` jail is unverified and disabled
+
+**File:** `stacks/proxy/fail2ban/filter.d/grafana-auth.conf`
+
+Its `datepattern` is now fixed and verified. Its `failregex` has never been matched against a real failed Grafana login — the expressions are written from Grafana's documented logfmt output, not a captured sample.
+
+Second, unresolved concern: Grafana has no trusted-proxy setting equivalent to GitLab's (see M8). It derives `remote_addr` from `X-Real-IP` / `X-Forwarded-For`, which NPM does set, but this was never confirmed against a real line. If it logs `172.21.0.2`, enabling the jail would ban nginx — the M8 failure mode, at the edge.
+
+**Before enabling:** one deliberate bad login, then `fail2ban-regex` (command in `stacks/proxy/fail2ban/README.md`), and confirm the captured address is the client's. `npm-auth` catches Grafana brute-force via its 401s meanwhile, so the jail is a refinement rather than a gap.
+
+---
+
+### L12 — Long-lived, account-wide Cloudflare API token
+
+The fail2ban token has **no expiry**, deliberately: an expiring token fails silently and unattended (see M14), which is worse than a long-lived one whose capability is narrow. It also **cannot be scoped to a single zone** — `Account Firewall Access Rules Write` is account-scoped and has no zone-level equivalent.
+
+Net capability if leaked: create and delete IP block rules across the account. It cannot read DNS, alter the tunnel, read traffic, or reach any other Cloudflare product. An attacker holding it could unban themselves, or ban arbitrary addresses — a denial-of-service against the household, not a data breach.
+
+**Mitigations:** rotate periodically; revoke instantly from the dashboard if suspected. It lives only in `stacks/proxy/.env`, which is gitignored.
+
+---
+
+### L13 — IPv6 unban depends on Cloudflare's lookup normalisation
+
+**File:** `stacks/proxy/fail2ban/bin/cloudflare.sh`
+
+Cloudflare stores IPv6 expanded (`2001:0db8:0000:...:0001`) while fail2ban hands over the compressed form. Unban looks the rule up by `configuration.value` in compressed form and Cloudflare matches it — verified by round trip.
+
+If that normalisation ever changes, the lookup returns nothing, the script treats it as "already gone" and exits 0, and the rule stays in Cloudflare **permanently**. Given how IPv6-heavy this homelab's traffic is, that would accumulate quietly until the 50,000-rule cap.
+
+**Cheap detector:** if the Cloudflare rule count keeps climbing while `fail2ban-client status` shows few current bans, this is why.
+
+---
+
+### L14 — IP Access Rules is the older of two Cloudflare mechanisms
+
+Cloudflare [recommends WAF custom rules](https://developers.cloudflare.com/waf/tools/ip-access-rules/) over IP Access Rules for new work. IP Access Rules are **not** deprecated, carry no announced sunset, and remain available on all plans at 50,000 rules — and they are the better fit here, because fail2ban needs to add and remove individual entries cheaply, which the rules API does and a ruleset expression does not.
+
+Recorded so that a future deprecation notice is recognised as affecting this deployment rather than coming as a surprise.
+
+---
+
+### L15 — WUD mounts the Docker socket
+
+**File:** `stacks/wud/docker-compose.yml`
+
+```yaml
+- /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+Read-only, so this is materially weaker than H1 and H2 — no container creation, no `exec`. But read access to the daemon still exposes every container's full configuration, including the **environment variables of every service on the host**: database passwords, the Grafana admin password, the GitLab runner token, the Cloudflare tokens.
+
+WUD is publicly exposed at `wud.<domain>`, gated by GitLab OIDC. A pre-auth vulnerability in WUD would read every secret in the homelab.
+
+**Fix:** `tecnativa/docker-socket-proxy` genuinely fits here, unlike H2 — WUD needs only `CONTAINERS` and `IMAGES` read endpoints, which is exactly what the proxy is designed to permit while blocking everything else.
+
+---
+
+### L16 — cadvisor runs with broad host access
+
+**File:** `stacks/monitoring/docker-compose.yml`
+
+`cadvisor` mounts `/`, `/var/run`, `/sys`, `/var/lib/docker` and `/dev/disk`, adds `SYS_PTRACE`, and takes `/dev/kmsg`. This is what cadvisor requires to do its job, and the mounts are read-only, so there is no clean fix — but it is a large host-visibility grant sitting on the same flat network as everything else (M7), and it is worth counting when reasoning about lateral movement.
+
+**Consider:** whether per-container metrics are worth this surface, given `node-exporter` already covers host-level metrics at far lower privilege.
 
 ---
 
