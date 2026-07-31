@@ -93,6 +93,12 @@ docker-compose.override.yml
 *.tfstate.*
 .terraform/
 
+*.tfvars
+*.tfvars.json
+
+!*.tfvars.example
+!*.tfvars.json.example
+
 # =========================
 # 📁 Node / misc (if you add tools later)
 # =========================
