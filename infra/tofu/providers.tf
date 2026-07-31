@@ -33,10 +33,22 @@ variable "proxmox_otp" {
   #default     = null   #this should never be defaulted to something as that would silently drop it instead of requesting it.
 }
 
-variable "proxmox_api_token" {
-  description = "API token in user@realm!tokenid=secret form, used by the api_token alias"
+variable "proxmox_token_id" {
+  description = "Token ID in user@realm!tokenid form, exactly as shown by the Proxmox UI's API Tokens page — used by the api alias"
+  type        = string
+}
+
+variable "proxmox_token_secret" {
+  description = "The token secret shown once at creation in the Proxmox UI's API Tokens page — used by the api alias"
   type        = string
   sensitive   = true
+}
+
+locals {
+  # The provider only accepts the token as one combined string
+  # (user@realm!tokenid=secret); Proxmox's UI shows the two halves
+  # separately, so tfvars mirrors that and this joins them back together.
+  proxmox_api_token = "${var.proxmox_token_id}=${var.proxmox_token_secret}"
 }
 
 # registry.terraform.io/providers/bpg/proxmox/0.111.1/docs
@@ -83,7 +95,7 @@ provider "proxmox" {
 provider "proxmox" {
   alias     = "api"
   endpoint  = var.proxmox_endpoint
-  api_token = var.proxmox_api_token
+  api_token = local.proxmox_api_token
 
   # because self-signed TLS certificate is in use
   insecure = true
