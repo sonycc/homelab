@@ -7,24 +7,48 @@ terraform {
   }
 }
 
+variable "proxmox_endpoint" {
+  description = "Proxmox API endpoint, e.g. https://10.0.0.2:8006/"
+  type        = string
+  default     = "https://10.0.0.2:8006/"
+}
+
+variable "proxmox_username" {
+  description = "Proxmox user in user@realm form, used by the password and ssh provider blocks, e.g. root@pam"
+  type        = string
+  default     = "root@pam"
+}
+
+variable "proxmox_password" {
+  description = "Password for proxmox_username, used by the password and ssh provider blocks"
+  type        = string
+  sensitive   = true
+}
+
+variable "proxmox_api_token" {
+  description = "API token in user@realm!tokenid=secret form, used by the api_token provider block"
+  type        = string
+  sensitive   = true
+}
 
 #registry.terraform.io/providers/bpg/proxmox/0.111.1/docs
 provider "proxmox_password" {
-  endpoint = "https://10.0.0.2:8006/"
+  endpoint = var.proxmox_endpoint
 
-  # TODO: use terraform variable or remove the line, and use PROXMOX_VE_USERNAME environment variable
-  username = "root@pam"
-  # TODO: use terraform variable or remove the line, and use PROXMOX_VE_PASSWORD environment variable
-  password = "the-password-set-during-installation-of-proxmox-ve"
+  username = var.proxmox_username
+  password = var.proxmox_password
 
   # because self-signed TLS certificate is in use
   insecure = true
 }
 
 provider "proxmox_ssh" {
-  endpoint = "https://10.0.0.2:8006/"
-  username = "root@pam"
-  password = "the-password-set-during-installation-of-proxmox-ve"
+  endpoint = var.proxmox_endpoint
+
+  username = var.proxmox_username
+  password = var.proxmox_password
+
+  # because self-signed TLS certificate is in use
   insecure = true
 
   ssh {
@@ -35,6 +59,6 @@ provider "proxmox_ssh" {
 
 
 provider "proxmox_api" {
-  endpoint  = "https://10.0.0.2:8006/"
-  api_token = "terraform@pve!provider=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  endpoint = var.proxmox_endpoint
+  api_token = var.proxmox_api_token
 }
