@@ -1,0 +1,20 @@
+# The repo is edited on Windows and every file in it is bind-mounted into a Linux
+# container, where a CRLF shebang makes the kernel look for "/bin/sh\r" and report
+# "not found" — with no hint that line endings are involved. Normalise to LF in the
+# index so the checkout matches what the containers expect.
+
+* text=auto eol=lf
+
+# Explicit for the file types that are executed or parsed inside a container, where
+# a stray CR is fatal rather than cosmetic.
+*.sh    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.conf  text eol=lf
+.env.example text eol=lf
+
+# Never normalise binaries.
+*.png binary
+*.jpg binary
+*.gz  binary
+*.zip binary

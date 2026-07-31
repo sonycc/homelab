@@ -46,9 +46,19 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      # No POSTGRES_DB: the dump is instance-wide (pg_dumpall).
 
-      BACKUP_DIR: ${BACKUP_DIR}
+      # No postgres server runs in this container, so libpq has no unix socket to
+      # fall back on.
+      PGHOST: postgres
+
+      # Container-side path. The host location is BACKUP_HOST_DIR, below.
+      BACKUP_DIR: /backups
+
+      # How stale .last-success may get before the healthcheck reports unhealthy.
+      # Suits the hourly schedule; raise to at least 90000 (25h) if hourly is off
+      # and daily is the fastest cycle.
+      BACKUP_MAX_AGE_SECONDS: ${BACKUP_MAX_AGE_SECONDS:-7200}
 
       BACKUP_HOURLY_KEEP: ${BACKUP_HOURLY_KEEP}
       BACKUP_HOURLY_SCHEDULE: ${BACKUP_HOURLY_SCHEDULE}
@@ -66,7 +76,9 @@ services:
       - homelab
 
     volumes:
-      - ${BACKUP_DIR}:/backups
+      # Host path, kept separate from the container-side BACKUP_DIR above so it can
+      # point at durable storage (a NAS or second drive) rather than the Docker VM.
+      - ${BACKUP_HOST_DIR:-./backup}:/backups
       - ./backup.sh:/backup.sh:ro
 
     security_opt:
@@ -82,6 +94,8 @@ services:
 
     entrypoint: /bin/sh
     command: -c "
+      if ! head -1 /backup.sh | grep -q '^#!/bin/sh$$' ; then echo 'FATAL - /backup.sh is missing, or has CRLF line endings (see .gitattributes)' >&2 ; exit 1 ; fi
+
       > /etc/crontabs/root &&
 
       [ \"$BACKUP_HOURLY_KEEP\" -gt 0 ] && echo \"$BACKUP_HOURLY_SCHEDULE /backup.sh hourly\" >> /etc/crontabs/root || true
@@ -89,8 +103,20 @@ services:
       [ \"$BACKUP_WEEKLY_KEEP\" -gt 0 ] && echo \"$BACKUP_WEEKLY_SCHEDULE /backup.sh weekly\" >> /etc/crontabs/root || true
       [ \"$BACKUP_MONTHLY_KEEP\" -gt 0 ] && echo \"$BACKUP_MONTHLY_SCHEDULE /backup.sh monthly\" >> /etc/crontabs/root || true
 
+      if [ \"$BACKUP_DAILY_KEEP\" -gt 0 ] ; then /backup.sh daily || exit 1 ; fi
+
       crond -f
       "
+
+    # Cron failures only reach stderr, which nothing reads. Unhealthy here means
+    # "no backup has succeeded recently" — backup.sh touches .last-success only
+    # after the archive is written, verified and moved into place.
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /backups/.last-success ] && [ $$(( $$(date +%s) - $$(stat -c %Y /backups/.last-success) )) -lt $${BACKUP_MAX_AGE_SECONDS:-7200} ]"]
+      interval: 5m
+      timeout: 10s
+      retries: 2
+      start_period: 5m
 
 volumes:
   postgres_data:

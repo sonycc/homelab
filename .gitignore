@@ -20,9 +20,14 @@ data/
 letsencrypt/
 */letsencrypt/
 
+# Postgres backup target (default BACKUP_HOST_DIR). pg_dumpall output includes
+# role password hashes.
+stacks/postgres/backup/
+
 # Database files (extra safety)
 *.db
 *.sql
+*.sql.gz
 
 !*.dummy.sql
 !*.seed.sql
