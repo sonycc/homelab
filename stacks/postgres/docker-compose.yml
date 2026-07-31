@@ -44,6 +44,10 @@ services:
         condition: service_healthy
 
     environment:
+      # Matches the other stacks, so archive filenames and cron fire times read in
+      # local time rather than UTC.
+      TZ: ${TZ:-Europe/Oslo}
+
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # No POSTGRES_DB: the dump is instance-wide (pg_dumpall).
