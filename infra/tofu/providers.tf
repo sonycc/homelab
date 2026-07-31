@@ -25,13 +25,20 @@ variable "proxmox_password" {
   sensitive   = true
 }
 
+# Commented out along with the password provider alias below, its only
+# consumer. A declared variable with no default is required on EVERY run
+# regardless of whether anything actually references it — commenting out
+# just the provider block that used to use it is not enough on its own.
+# Uncomment together with the password alias if that auth method is needed.
+/*
 variable "proxmox_otp" {
   description = "TOTP one-time password for username/password auth. Only used by the password alias — the provider has deprecated this argument in favour of exchanging a TOTP for an auth ticket out-of-band (see provider docs), but it still works. Not applicable to api_token auth, which bypasses 2FA entirely."
   type        = string
   sensitive   = true
-  
+
   #default     = null   #this should never be defaulted to something as that would silently drop it instead of requesting it.
 }
+*/
 
 variable "proxmox_token_id" {
   description = "Token ID in user@realm!tokenid form, exactly as shown by the Proxmox UI's API Tokens page — used by the api alias"
@@ -51,20 +58,19 @@ locals {
   proxmox_api_token = "${var.proxmox_token_id}=${var.proxmox_token_secret}"
 }
 
-# registry.terraform.io/providers/bpg/proxmox/0.111.1/docs
-#
-# Three aliases of the same "proxmox" provider, one per auth method, rather
-# than three separate providers — a local name must match the key declared
-# in required_providers above, so provider "proxmox_password" etc. would
-# fail on init (Terraform would look for providers literally named that).
-# Pick one to actually use in resources via `provider = proxmox.<alias>`;
-# the others are kept here for reference/comparison.
+/* registry.terraform.io/providers/bpg/proxmox/0.111.1/docs
 
-# Commented out: every declared provider block configures eagerly on every
-# run regardless of which alias a resource actually uses, so leaving these
-# active meant a proxmox_otp prompt (and password/username evaluation) on
-# every plan/apply even when only the api alias below was being used.
-# Uncomment either if password- or ssh-based auth is actually needed later.
+ Three aliases of the same "proxmox" provider, one per auth method, rather
+ than three separate providers — a local name must match the key declared
+ in required_providers above, so provider "proxmox_password" etc. would
+ fail on init (Terraform would look for providers literally named that).
+ Pick one to actually use in resources via `provider = proxmox.<alias>`;
+ the others are kept here for reference/comparison.
+*/
+
+# Commented out: not currently needed, only the api alias below is in use.
+# Uncomment either if password- or ssh-based auth is actually needed later —
+# and if uncommenting password, also uncomment its proxmox_otp variable above.
 
 /*
 provider "proxmox" {
