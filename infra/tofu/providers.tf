@@ -60,6 +60,13 @@ locals {
 # Pick one to actually use in resources via `provider = proxmox.<alias>`;
 # the others are kept here for reference/comparison.
 
+# Commented out: every declared provider block configures eagerly on every
+# run regardless of which alias a resource actually uses, so leaving these
+# active meant a proxmox_otp prompt (and password/username evaluation) on
+# every plan/apply even when only the api alias below was being used.
+# Uncomment either if password- or ssh-based auth is actually needed later.
+
+/*
 provider "proxmox" {
   alias    = "password"
   endpoint = var.proxmox_endpoint
@@ -91,6 +98,7 @@ provider "proxmox" {
     agent = true
   }
 }
+*/
 
 provider "proxmox" {
   alias     = "api"
