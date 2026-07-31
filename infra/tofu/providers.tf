@@ -14,13 +14,13 @@ variable "proxmox_endpoint" {
 }
 
 variable "proxmox_username" {
-  description = "Proxmox user in user@realm form, used by the password and ssh provider aliases, e.g. root@pam"
+  description = "Proxmox user in user@realm form, used by the commented-out password/ssh provider examples below, e.g. root@pam"
   type        = string
   default     = "root@pam"
 }
 
 variable "proxmox_password" {
-  description = "Password for proxmox_username, used by the password and ssh provider aliases"
+  description = "Password for proxmox_username, used by the commented-out password/ssh provider examples below"
   type        = string
   sensitive   = true
 }
@@ -41,12 +41,12 @@ variable "proxmox_otp" {
 */
 
 variable "proxmox_token_id" {
-  description = "Token ID in user@realm!tokenid form, exactly as shown by the Proxmox UI's API Tokens page — used by the api alias"
+  description = "Token ID in user@realm!tokenid form, exactly as shown by the Proxmox UI's API Tokens page"
   type        = string
 }
 
 variable "proxmox_token_secret" {
-  description = "The token secret shown once at creation in the Proxmox UI's API Tokens page — used by the api alias"
+  description = "The token secret shown once at creation in the Proxmox UI's API Tokens page"
   type        = string
   sensitive   = true
 }
@@ -58,23 +58,23 @@ locals {
   proxmox_api_token = "${var.proxmox_token_id}=${var.proxmox_token_secret}"
 }
 
-/* registry.terraform.io/providers/bpg/proxmox/0.111.1/docs
+# registry.terraform.io/providers/bpg/proxmox/0.111.1/docs
+#
+# Single unaliased provider — only one auth method is configured at a time,
+# so no resource needs `provider = proxmox.<alias>`; the default (this
+# block) applies automatically. If a second auth method is ever needed
+# side by side, that requires `alias` on both blocks and explicit
+# `provider = proxmox.<alias>` on every resource — deliberately not doing
+# that now, for one real config.
 
- Three aliases of the same "proxmox" provider, one per auth method, rather
- than three separate providers — a local name must match the key declared
- in required_providers above, so provider "proxmox_password" etc. would
- fail on init (Terraform would look for providers literally named that).
- Pick one to actually use in resources via `provider = proxmox.<alias>`;
- the others are kept here for reference/comparison.
-*/
-
-# Commented out: not currently needed, only the api alias below is in use.
-# Uncomment either if password- or ssh-based auth is actually needed later —
-# and if uncommenting password, also uncomment its proxmox_otp variable above.
+# Alternative auth methods, kept commented as reference only — NOT
+# switchable via alias the way an earlier version of this file did. To
+# actually use one, comment out the active block below instead of adding
+# this alongside it; two unaliased "proxmox" provider blocks at once is an
+# error.
 
 /*
 provider "proxmox" {
-  alias    = "password"
   endpoint = var.proxmox_endpoint
 
   username = var.proxmox_username
@@ -86,7 +86,6 @@ provider "proxmox" {
 }
 
 provider "proxmox" {
-  alias    = "ssh"
   endpoint = var.proxmox_endpoint
 
   username = var.proxmox_username
@@ -107,7 +106,6 @@ provider "proxmox" {
 */
 
 provider "proxmox" {
-  alias     = "api"
   endpoint  = var.proxmox_endpoint
   api_token = local.proxmox_api_token
 
