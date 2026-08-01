@@ -85,4 +85,9 @@ provider "proxmox" {
 
   # because self-signed TLS certificate is in use
   insecure = true
+
+  ssh {
+    username    = "root"
+    private_key = file("~/.ssh/homelab_infra")
+  }
 }
