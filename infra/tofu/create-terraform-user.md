@@ -26,6 +26,7 @@ before OpenTofu can authenticate at all.
   - `VM.Console` — console/VNC access. Included from the original privilege list, but honestly: nothing OpenTofu does for cloning/configuring/powering a VM opens a console. Left in rather than silently dropped, but it's a candidate to remove if you want the role tighter — flagging rather than asserting a need I can't back up.
   - `Datastore.AllocateSpace` — use space on a datastore. Needed every time a disk is sized on `local-lvm`.
   - `Datastore.Audit` — read datastore status. Needed to validate `local-lvm` has room before allocating.
+  - `Datastore.Allocate` — create/modify/remove a datastore. Not needed just to *use* `local-lvm` for VM disks (that's `Datastore.AllocateSpace` above) — needed specifically to read or manage the storage pool's own definition, e.g. `proxmox_storage_lvmthin` in Terraform. Found the hard way: importing that resource with only `AllocateSpace`/`Audit` granted fails with a 403 on `/storage/local-lvm`.
   - `Sys.Audit` — read node status/config. Needed for the provider to resolve and validate `node_name`.
   - `SDN.Use` — attach to vnets/local bridges. Needed to attach network devices to `vmbr0` and `vmbr1`.
 
