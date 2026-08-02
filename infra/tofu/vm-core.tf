@@ -36,8 +36,8 @@ resource "proxmox_virtual_environment_vm" "vm_core" {
   }
 
   initialization {
-    datastore_id      = "local-lvm"
-    user_data_file_id = proxmox_virtual_environment_file.qemu_agent_init.id
+    datastore_id        = "local-lvm"
+    vendor_data_file_id = proxmox_virtual_environment_file.qemu_agent_init.id
 
     ip_config {
       ipv4 {
