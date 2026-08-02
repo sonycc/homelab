@@ -4,6 +4,7 @@
 # so only exists once the VM has booted.
 
 locals {
+  lan_prefix      = "10.0.0."
   internal_prefix = "10.10.10."
 
   vms = {
@@ -17,17 +18,19 @@ locals {
     }
   }
 
-  # Selected by subnet rather than list index, so a renamed or reordered interface changes nothing.
+  # Matched positively against the two known subnets.
   vm_addresses = {
     for name, vm in local.vms : name => {
       lan = one([
         for ip in vm.ipv4 : ip
-        if !startswith(ip, local.internal_prefix) && !startswith(ip, "127.")
+        if startswith(ip, local.lan_prefix)
       ])
+
       internal = one([
         for ip in vm.ipv4 : ip
         if startswith(ip, local.internal_prefix)
       ])
+
       vm_id = vm.vm_id
     }
   }
