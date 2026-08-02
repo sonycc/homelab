@@ -1,0 +1,11 @@
+# OpenTofu uses this template file to generate infra/ansible/inventory.ini from infra/tofu/inventory.tf.
+# Do not edit.
+
+${groups}
+
+[homelab:children]
+${children}
+
+[homelab:vars]
+ansible_user=${ansible_user}
+ansible_ssh_private_key_file=${ansible_ssh_private_key_file}

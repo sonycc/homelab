@@ -4,6 +4,12 @@ terraform {
       source  = "bpg/proxmox"
       version = "~> 0.111"
     }
+
+    # https://opentofu.org/docs/language/functions/file/
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.9"
+    }
   }
 }
 
