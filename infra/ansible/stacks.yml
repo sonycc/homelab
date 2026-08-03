@@ -1,0 +1,16 @@
+# Deploys compose stacks to the VM that owns them.
+#
+# Add a stack by adding a role entry; order within a play is deployment order, so
+# postgres lands before anything that depends on it. Tags let a single stack be
+# deployed on its own:
+#
+#   ansible-playbook stacks.yml --tags uptime
+
+- name: Stacks on vm-core
+  hosts: vm_core
+  become: true
+
+  roles:
+    - role: stack_deploy
+      stack_name: uptime
+      tags: [uptime]
