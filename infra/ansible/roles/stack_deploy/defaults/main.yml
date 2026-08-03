@@ -1,0 +1,12 @@
+# https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_reuse_roles.html
+# https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_variables.html#variable-precedence-where-should-i-put-a-variable
+# defaults/ rather than vars/ so a caller can override these per stack.
+
+stack_src: "{{ playbook_dir }}/../../stacks/{{ stack_name }}"
+stack_dest: "/opt/homelab/{{ stack_name }}"
+
+# A list, not the whole directory: proxy/data, proxy/letsencrypt and homeassistant/config/.storage need to be moved once by hand.
+stack_paths:
+  - docker-compose.yml
+
+stack_wait_timeout: 300
