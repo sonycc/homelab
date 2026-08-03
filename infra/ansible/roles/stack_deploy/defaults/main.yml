@@ -9,4 +9,8 @@ stack_dest: "/opt/homelab/{{ stack_name }}"
 stack_paths:
   - docker-compose.yml
 
+# Overridable per host: the proxy stack needs a different tunnel token on the new
+# host than the one the old host is still running on. Always lands as .env.
+stack_env_src: "{{ stack_src }}/.env"
+
 stack_wait_timeout: 300

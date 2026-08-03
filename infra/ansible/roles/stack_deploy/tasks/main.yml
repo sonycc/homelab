@@ -30,7 +30,7 @@
 # stack has one — uptime has no secrets at all.
 - name: Look for an env file
   ansible.builtin.stat:
-    path: "{{ stack_src }}/.env"
+    path: "{{ stack_env_src }}"
   delegate_to: localhost
   become: false
   register: stack_env
@@ -38,7 +38,7 @@
 
 - name: Copy the env file
   ansible.builtin.copy:
-    src: "{{ stack_src }}/.env"
+    src: "{{ stack_env_src }}"
     dest: "{{ stack_dest }}/.env"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
