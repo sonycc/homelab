@@ -1,0 +1,51 @@
+# Uptime Kuma — the monitor that says when everything else is down.
+#
+# Deliberately NOT behind cloudflared/NPM, unlike every other service: it has to
+# stay reachable when the thing it reports on is the tunnel or the proxy. So it
+# binds straight to the VM's interfaces and is reached over the LAN.
+#
+# Safe here because vm-core has no port forward at the router, so 0.0.0.0 means
+# the home LAN rather than the internet. Do not add an NPM proxy host or a tunnel
+# hostname for it.
+#
+# During the migration it watches both hosts, so it is the first service deployed
+# and the last one moved.
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.0
+    container_name: uptime-kuma
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+
+    ports:
+      - "${UPTIME_PORT:-3001}:3001"
+
+    volumes:
+      - uptime_kuma_data:/app/data
+
+    networks:
+      - homelab
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+        reservations:
+          memory: 64m
+
+    # No healthcheck block — the image ships its own HEALTHCHECK, and that is what
+    # `docker compose up --wait` in the stack_deploy role gates on.
+
+volumes:
+  uptime_kuma_data:
+
+networks:
+  homelab:
+    external: true
