@@ -4,7 +4,7 @@
 # so only exists once the VM has booted.
 
 locals {
-  lan_prefix      = "10.0.0."
+  lan_prefix      = "10.0.1."
   internal_prefix = "10.10.10."
 
   vms = {

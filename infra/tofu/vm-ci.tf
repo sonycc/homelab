@@ -28,11 +28,13 @@ resource "proxmox_virtual_environment_vm" "vm_ci" {
   }
 
   network_device {
-    bridge = "vmbr0"
+    bridge   = "vmbr0"
+    firewall = true
   }
 
   network_device {
-    bridge = "vmbr1"
+    bridge   = "vmbr1"
+    firewall = true
   }
 
   initialization {
@@ -41,7 +43,8 @@ resource "proxmox_virtual_environment_vm" "vm_ci" {
 
     ip_config {
       ipv4 {
-        address = "dhcp"
+        address = "10.0.1.30/23"
+        gateway = "10.0.0.10"
       }
     }
 

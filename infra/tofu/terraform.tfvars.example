@@ -1,4 +1,4 @@
-proxmox_endpoint        = "https://10.0.0.2:8006/"
+proxmox_endpoint        = "https://10.0.1.2:8006/"
 proxmox_username        = "root@pam"
 proxmox_password        = "change_me"
 proxmox_token_id        = "terraform@pve!tofu"

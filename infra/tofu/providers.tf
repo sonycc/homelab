@@ -14,9 +14,9 @@ terraform {
 }
 
 variable "proxmox_endpoint" {
-  description = "Proxmox API endpoint, e.g. https://10.0.0.2:8006/"
+  description = "Proxmox API endpoint, e.g. https://10.0.1.2:8006/"
   type        = string
-  default     = "https://10.0.0.2:8006/"
+  default     = "https://10.0.1.2:8006/"
 }
 
 variable "proxmox_username" {
