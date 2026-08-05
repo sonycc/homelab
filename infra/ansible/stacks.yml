@@ -19,6 +19,13 @@
       stack_env_src: "{{ stack_src }}/.env.vm-core"
       tags: [postgres]
 
+    # data/ and letsencrypt/ are deliberately absent from stack_paths — runtime state, moved once by hand, not synced on every deploy.
+    - role: stack_deploy
+      stack_name: proxy
+      stack_paths: [docker-compose.yml, nginx.conf, fail2ban]
+      stack_env_src: "{{ stack_src }}/.env.vm-core"
+      tags: [proxy]
+
     # Monitors are templates because they name public hostnames, and the domain is
     # deliberately not in this repo. Needs homelab_domain in group_vars.
     - role: stack_deploy

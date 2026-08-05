@@ -129,11 +129,6 @@ Unlike NPM's admin UI (`127.0.0.1:81`) and Home Assistant (`127.0.0.1:8123`), th
 
 ---
 
-### L7 — `test.local` proxy host missing exploit-blocking include
-
-`stacks/proxy/data/nginx/proxy_host/1.conf` does not include `conf.d/include/block-exploits.conf`, unlike the `gitlab.<domain>` proxy host. Either add the include or confirm this host is not reachable externally.
-
----
 
 ### L8 — Image freshness tracking ✓ resolved by WUD
 
