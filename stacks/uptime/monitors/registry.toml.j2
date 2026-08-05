@@ -1,0 +1,7 @@
+type = "http"
+name = "GitLab registry"
+url = "https://registry.{{ homelab_domain }}"
+interval = 300
+max_retries = 3
+# 401 is the registry answering correctly to an unauthenticated request.
+accepted_statuscodes = ["200-299", "401"]

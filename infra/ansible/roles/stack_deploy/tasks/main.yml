@@ -30,6 +30,26 @@
     mode: "0755"
   loop: "{{ stack_paths }}"
 
+# template does not create parent directories, unlike copy.
+- name: Create template directories
+  ansible.builtin.file:
+    path: "{{ stack_dest }}/{{ item | dirname }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ stack_templates }}"
+
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/template_module.html
+- name: Render stack templates
+  ansible.builtin.template:
+    src: "{{ stack_src }}/{{ item }}"
+    dest: "{{ stack_dest }}/{{ item | regex_replace('\\.j2$', '') }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  loop: "{{ stack_templates }}"
+
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/stat_module.html
 # delegate_to: localhost because the file lives on the control node. Not every
 # stack has one — uptime has no secrets at all.

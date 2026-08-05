@@ -9,6 +9,10 @@ stack_dest: "/opt/homelab/{{ stack_name }}"
 stack_paths:
   - docker-compose.yml
 
+# Relative .j2 paths rendered with Ansible vars, landing at the same path minus the suffix.
+# For configs that needs a value the repo deliberately does not hold a copy of, e.g. secrets, the caller can override these per stack.
+stack_templates: []
+
 # Overridable per host: the proxy stack needs a different tunnel token on the new
 # host than the one the old host is still running on. Always lands as .env.
 stack_env_src: "{{ stack_src }}/.env"

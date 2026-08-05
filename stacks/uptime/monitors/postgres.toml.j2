@@ -1,0 +1,8 @@
+# Over the homelab network, so this checks the postgres on whichever host this
+# Kuma is running on — no address to keep in sync.
+type = "port"
+name = "postgres (local)"
+hostname = "postgres"
+port = 5432
+interval = 60
+max_retries = 3

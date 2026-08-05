@@ -43,6 +43,53 @@ services:
     # No healthcheck block — the image ships its own HEALTHCHECK, and that is what
     # `docker compose up --wait` in the stack_deploy role gates on.
 
+  # Keeps the monitors in git. Uptime Kuma stores them in its own sqlite db with no
+  # import path, and its REST API is read-only — every write goes through Socket.IO,
+  # which is what AutoKuma speaks.
+  #
+  # Static files rather than the container-label mode it is better known for: the
+  # monitors here check public hostnames, and those URLs stay put when a service
+  # moves between hosts. That is the whole point of the tunnel flip. Labels would
+  # tie each monitor to the container it is supposed to be watching independently.
+  autokuma:
+    image: ghcr.io/bigboot/autokuma:2.0.0
+    container_name: autokuma
+    restart: unless-stopped
+    depends_on:
+      uptime-kuma:
+        condition: service_healthy
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+
+      # Over the homelab network, so this does not depend on the LAN address.
+      AUTOKUMA__KUMA__URL: http://uptime-kuma:3001
+      AUTOKUMA__KUMA__USERNAME: ${KUMA_USER:?KUMA_USER not set}
+      AUTOKUMA__KUMA__PASSWORD: ${KUMA_PASSWORD:?KUMA_PASSWORD not set}
+
+      # No docker socket. The label source is the only thing that needs it, and
+      # disabling it keeps this container away from the daemon entirely (AUDIT L15).
+      AUTOKUMA__DOCKER__ENABLED: "false"
+
+      AUTOKUMA__STATIC_MONITORS: /monitors
+
+    volumes:
+      - ./monitors:/monitors:ro
+
+    networks:
+      - homelab
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+        reservations:
+          memory: 32m
+
 volumes:
   uptime_kuma_data:
 

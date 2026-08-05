@@ -1,0 +1,8 @@
+# vm-ci publishes nothing, so reachability is all there is to check from here.
+# Firewall allows ICMP on net0 for both VMs; there is no path from the internet to
+# either, by design.
+type = "ping"
+name = "vm-ci"
+hostname = "{{ hostvars['vm-ci'].ansible_host }}"
+interval = 300
+max_retries = 3

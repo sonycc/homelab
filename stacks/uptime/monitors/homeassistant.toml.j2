@@ -1,0 +1,8 @@
+# One of the two monitors that exist because HA sat Exited (137) for nine days
+# unnoticed. It binds to 127.0.0.1 on its host, so the public URL is the only way
+# to check it from anywhere else.
+type = "http"
+name = "Home Assistant"
+url = "https://ha.{{ homelab_domain }}"
+interval = 60
+max_retries = 3

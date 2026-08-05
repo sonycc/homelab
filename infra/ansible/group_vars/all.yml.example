@@ -1,0 +1,4 @@
+# Apex domain the homelab is served on.
+# The uptime stack's monitor templates build <app>.<domain> from it.
+# Must match DOMAIN in the stack .env files.
+homelab_domain: your-domain.tld

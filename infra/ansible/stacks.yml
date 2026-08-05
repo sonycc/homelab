@@ -19,6 +19,17 @@
       stack_env_src: "{{ stack_src }}/.env.vm-core"
       tags: [postgres]
 
+    # Monitors are templates because they name public hostnames, and the domain is
+    # deliberately not in this repo. Needs homelab_domain in group_vars.
     - role: stack_deploy
       stack_name: uptime
+      stack_templates:
+        - monitors/gitlab.toml.j2
+        - monitors/registry.toml.j2
+        - monitors/grafana.toml.j2
+        - monitors/homeassistant.toml.j2
+        - monitors/wud.toml.j2
+        - monitors/postgres.toml.j2
+        - monitors/vm-core.toml.j2
+        - monitors/vm-ci.toml.j2
       tags: [uptime]

@@ -1,0 +1,8 @@
+# Kuma runs on this host, so a red result here is unreachable — if vm-core is down
+# nothing is left to report it. What it does give you is history: after a reboot
+# Kuma comes back and the gap is on the timeline.
+type = "ping"
+name = "vm-core"
+hostname = "{{ hostvars['vm-core'].ansible_host }}"
+interval = 300
+max_retries = 3
