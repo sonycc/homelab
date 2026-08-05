@@ -28,8 +28,10 @@
 
     # Monitors are templates because they name public hostnames, and the domain is
     # deliberately not in this repo. Needs homelab_domain in group_vars.
+    # monitors/ is AutoKuma's source of truth; without it Kuma comes up empty.
     - role: stack_deploy
       stack_name: uptime
+      stack_paths: [docker-compose.yml]
       stack_templates:
         - monitors/gitlab.toml.j2
         - monitors/registry.toml.j2
