@@ -9,6 +9,6 @@ resource "proxmox_download_file" "ubuntu_cloudimg" {
   url       = "https://cloud-images.ubuntu.com/releases/resolute/release/ubuntu-26.04-server-cloudimg-amd64.img"
   file_name = "ubuntu-26.04-server-cloudimg-amd64.qcow2"
 
-  checksum           = "117816726abbdefc5ef3e38902e81a76f1c76c3610e709999d0885f9d5d9b477"
+  checksum           = "9dc7c5363c0146a08ba0c9aa834d82c2c6dfbb1c471ad9a2f0aba1189e21be05"
   checksum_algorithm = "sha256"
 }
