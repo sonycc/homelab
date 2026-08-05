@@ -11,6 +11,14 @@
   become: true
 
   roles:
+    # .env.vm-core, not .env:
+    # the old host is still running off the shared one, and this instance needs its own POSTGRES_BIND and BACKUP_HOST_DIR.
+    - role: stack_deploy
+      stack_name: postgres
+      stack_paths: [docker-compose.yml, backup.sh]
+      stack_env_src: "{{ stack_src }}/.env.vm-core"
+      tags: [postgres]
+
     - role: stack_deploy
       stack_name: uptime
       tags: [uptime]

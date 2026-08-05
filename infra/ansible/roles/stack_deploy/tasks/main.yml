@@ -17,12 +17,17 @@
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/copy_module.html
 # No trailing slash on src, so a directory is copied as itself rather than having its contents unpacked into dest.
+# 
+# 0755 because scripts here are executed by their container.
+# Windows bind mounts invent that bit, so the old host never needed it.
+# On a real VM the mode is real and a 0644 backup.sh dies with permission denied.
 - name: Copy stack files
   ansible.builtin.copy:
     src: "{{ stack_src }}/{{ item }}"
     dest: "{{ stack_dest }}/"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
+    mode: "0755"
   loop: "{{ stack_paths }}"
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/stat_module.html
