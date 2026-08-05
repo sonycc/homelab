@@ -1,0 +1,66 @@
+- name: Common host setup
+  hosts: homelab
+  become: true
+
+  vars:
+    timezone: Europe/Oslo
+
+  handlers:
+    # Ubuntu 24.04+ starts sshd per connection via ssh.socket, so config is re-read anyway.
+    # Kept for the case where socket activation is off.
+    - name: Restart sshd
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+
+  tasks:
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/command_module.html
+    # timedatectl rather than community.general.timezone, to avoid pulling a collection.
+    - name: Read the current timezone
+      ansible.builtin.command: timedatectl show -p Timezone --value
+      register: current_timezone
+      changed_when: false
+
+    # Matches TZ in the stacks, so container and host timestamps line up.
+    - name: Set the timezone
+      ansible.builtin.command: timedatectl set-timezone {{ timezone }}
+      when: current_timezone.stdout != timezone
+
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/apt_module.html
+    - name: Install unattended-upgrades
+      ansible.builtin.apt:
+        name: unattended-upgrades
+        state: present
+        update_cache: true
+
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/copy_module.html
+    - name: Enable unattended upgrades
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+        mode: "0644"
+
+    # Patching unattended is wanted, rebooting unattended is not.
+    # A VM that reboots itself mid-migration takes its containers with it and looks like a real fault.
+    - name: Never reboot on its own
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/51homelab-no-reboot
+        content: |
+          Unattended-Upgrade::Automatic-Reboot "false";
+        mode: "0644"
+
+    # A drop-in rather than editing sshd_config, so a distro upgrade cannot silently revert it.
+    # Validate runs sshd -t first: a syntax error fails the task and changes nothing,
+    #   rather than restarting sshd into a config that locks you out.
+    - name: Harden sshd
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/10-homelab.conf
+        content: |
+          PermitRootLogin no
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+        mode: "0644"
+        validate: sshd -t -f %s
+      notify: Restart sshd
