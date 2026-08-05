@@ -79,12 +79,6 @@ services:
         aliases:
           - gitlab.${DOMAIN:?DOMAIN not set}
           - registry.${DOMAIN:?DOMAIN not set}
-          # The pelican panel calls its wings node by FQDN, and wings calls back the
-          # same way. Both are container-to-container, so without these aliases the
-          # lookups leave the host, hairpin through the tunnel, and fail whenever
-          # the WAN path is down.
-          - panel.${DOMAIN:?DOMAIN not set}
-          - node.${DOMAIN:?DOMAIN not set}
 
     security_opt:
       - no-new-privileges:true
