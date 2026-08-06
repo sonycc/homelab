@@ -1,0 +1,79 @@
+# GitLab CI runner and its Docker-in-Docker daemon.
+#
+# Split out of the gitlab stack because it belongs on a different host. A CI job
+# gets root on whatever Docker daemon runs it (AUDIT H1), so this lives on vm-ci
+# and nothing else does. That split is also why it cannot stay in the same compose
+# file: `depends_on: gitlab` cannot cross hosts.
+#
+# The runner reaches GitLab over HTTPS and shares no volume with it, which is what
+# makes the separation clean.
+
+services:
+  dind:
+    image: docker:29.6.1-dind
+    container_name: dind
+    restart: unless-stopped
+    privileged: true
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_SAN: DNS:dind
+
+    volumes:
+      - dind_certs:/certs
+
+    networks:
+      - ci
+
+  gitlab-runner:
+    container_name: gitlab-runner
+    image: gitlab/gitlab-runner:alpine3.21-v19.1.1
+    restart: unless-stopped
+
+    depends_on:
+      - dind
+
+    environment:
+      # dind service auth
+      DOCKER_HOST: tcp://dind:2376
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_CERT_PATH: /certs/client
+
+      # Registration. The token is per-instance and is issued in the GitLab UI;
+      # the one from the old host does not survive the migration.
+      GITLAB_RUNNER_TOKEN: ${GITLAB_RUNNER_TOKEN:?GITLAB_RUNNER_TOKEN not set}
+
+      # How this host reaches GitLab. On the old host it was http://gitlab:80 over a
+      # shared Docker network; across VMs that name does not resolve.
+      #
+      # Two options, unresolved until the runner actually moves:
+      #   - the public URL, which hairpins out through Cloudflare and back. Works with
+      #     no extra plumbing, but a WAN outage takes CI down with it.
+      #   - vm-core's vmbr1 address with an extra_hosts entry pinning the public
+      #     hostname to it, so TLS still validates against the wildcard cert. Needs NPM
+      #     to publish 443 on that address first — today it publishes nothing but the
+      #     admin UI on loopback, since all ingress arrives from cloudflared over the
+      #     Docker network. The firewall rule for vm-ci → vm-core:443 already exists in
+      #     anticipation of this.
+      GITLAB_INTERNAL_URL: ${GITLAB_INTERNAL_URL:?GITLAB_INTERNAL_URL not set}
+
+    entrypoint: ["/entrypoint.sh"]
+
+    volumes:
+      - dind_certs:/certs:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - gitlab_runner_config:/etc/gitlab-runner
+
+    networks:
+      - ci
+
+volumes:
+  dind_certs:
+  gitlab_runner_config:
+
+# Stack-local: nothing else runs on this host, and the runner reaches GitLab over
+# the network rather than by container name.
+networks:
+  ci:

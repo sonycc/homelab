@@ -1,10 +1,12 @@
 #!/bin/sh
 set -e
 
-# --docker-network-mode host: job containers share dind's network namespace (dind
-# is on the homelab network), so they resolve the NPM split-horizon aliases
-# (gitlab.<domain> / registry.<domain> → NPM) and reach GitLab over internal HTTPS.
-# Not a leftover workaround — required for the shared-dind architecture.
+# Registers on first run only.
+# config.toml persists in a named volume,
+#   and registering again adds a second runner entry for the same host.
+#
+# --docker-network-mode host puts job containers in dind's network namespace rather than their own,
+#   so a job resolves and routes exactly as dind does and reaches gitlab.<domain> and registry.<domain> the same way.
 if [ ! -f /etc/gitlab-runner/config.toml ]; then
   gitlab-runner register \
     --non-interactive \

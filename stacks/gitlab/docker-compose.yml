@@ -63,8 +63,8 @@ services:
 
     ports:
       - "${GITLAB_SSH_PORT}:22"
-      - "${GITLAB_HTTP_PORT:-8080}:80"
-      - "${GITLAB_REGISTRY_PORT:-5050}:5050"
+      - "${GITLAB_BIND:-127.0.0.1}:${GITLAB_HTTP_PORT:-8080}:80"
+      - "${GITLAB_BIND:-127.0.0.1}:${GITLAB_REGISTRY_PORT:-5050}:5050"
 
     volumes:
       - gitlab_config:/etc/gitlab
@@ -91,47 +91,10 @@ services:
       retries: 5
       start_period: 3m
 
-  dind:
-    image: docker:29.6.1-dind
-    container_name: dind
-    restart: unless-stopped
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: /certs
-      DOCKER_TLS_SAN: DNS:dind
-    volumes:
-      - /data/docker/gitlab-runner/certs:/certs
-    networks:
-      - homelab
-
-  gitlab-runner:
-    image: gitlab/gitlab-runner:alpine3.21-v19.1.1
-    restart: unless-stopped
-    depends_on:
-      - gitlab
-      - dind
-    environment:
-      #docker dind service auth
-      DOCKER_HOST: tcp://dind:2376
-      DOCKER_TLS_VERIFY: 1
-      DOCKER_CERT_PATH: /certs/client
-
-      #Gitlab runner registration
-      GITLAB_RUNNER_TOKEN: ${GITLAB_RUNNER_TOKEN}
-      GITLAB_INTERNAL_URL: ${GITLAB_INTERNAL_URL}
-    entrypoint: ["/entrypoint.sh"]
-    volumes:
-      - /data/docker/gitlab-runner/certs:/certs:ro
-      - ./runner/entrypoint.sh:/entrypoint.sh:ro
-      - gitlab_runner_config:/etc/gitlab-runner
-    networks:
-      - homelab
-
 volumes:
   gitlab_config:
   gitlab_logs:
   gitlab_data:
-  gitlab_runner_config:
 
 networks:
   homelab:
