@@ -6,8 +6,20 @@
 #   Public https://uptime.<domain>    NPM proxy host → cloudflared, like every other service
 
 #
+# NOT on the homelab network, unlike every other stack. NPM holds split-horizon
+# aliases there (gitlab.<domain>, registry.<domain>) so internal clients reach the
+# same HTTPS URL as external ones. A monitor must not: it has to resolve public
+# names the way an outside client does, or it measures the proxy instead of the
+# service. On homelab, gitlab.<domain> resolved to NPM's container and the checks
+# never left the box.
+#
+# Consequences, both deliberate:
+#   - NPM reaches this by host address and published port, not container name.
+#   - The postgres monitor targets internal_ip:5432 rather than the container name,
+#     which also makes it a check of the real published bind.
+#
 # NPM proxy host (UI, http://127.0.0.1:81):
-#   uptime.<domain> → http://uptime-kuma:3001
+#   uptime.<domain> → http://<vm-core LAN address>:3001
 #     - Websockets Support: ON — mandatory. The whole UI is Socket.IO; without it
 #       the page loads and then hangs with no error.
 #     - Block Exploits: ON, wildcard cert, Force SSL, Trust forwarded headers ON
@@ -33,7 +45,7 @@ services:
       - uptime_kuma_data:/app/data
 
     networks:
-      - homelab
+      - uptime
 
     security_opt:
       - no-new-privileges:true
@@ -83,7 +95,7 @@ services:
       - ./monitors:/monitors:ro
 
     networks:
-      - homelab
+      - uptime
 
     security_opt:
       - no-new-privileges:true
@@ -99,6 +111,7 @@ services:
 volumes:
   uptime_kuma_data:
 
+# Stack-local and not shared, so no other stack's aliases can land in this
+# resolver. AutoKuma reaches Kuma by name here; nothing else needs in.
 networks:
-  homelab:
-    external: true
+  uptime:

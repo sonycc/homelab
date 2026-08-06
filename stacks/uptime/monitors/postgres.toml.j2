@@ -1,8 +1,11 @@
-# Over the homelab network, so this checks the postgres on whichever host this
-# Kuma is running on — no address to keep in sync.
+# The published bind on whichever host this Kuma runs on, not the container name:
+# this stack is deliberately off the homelab network, so Docker DNS cannot resolve
+# `postgres` here. internal_ip comes from the inventory, so there is still no
+# address to keep in sync — and checking the bind is the better test anyway, since
+# that is the address every other host reaches postgres on.
 type = "port"
 name = "postgres (local)"
-hostname = "postgres"
+hostname = "{{ internal_ip }}"
 port = 5432
 interval = 60
 max_retries = 3

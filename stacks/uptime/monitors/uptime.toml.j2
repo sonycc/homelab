@@ -1,7 +1,7 @@
-# Kuma checking its own public URL. Not circular: the check runs inside Kuma over
-# the homelab network, and the alert leaves outbound, so a dead tunnel or a dead
-# NPM is exactly the case this catches. The LAN path on :3001 is unaffected either
-# way and stays the way in when this one is red.
+# Kuma checking its own public URL. Not circular: the request leaves the LAN and
+# comes back through Cloudflare and NPM, and the alert leaves outbound, so a dead
+# tunnel or a dead NPM is exactly the case this catches. The LAN path on :3001 is
+# unaffected either way and stays the way in when this one is red.
 type = "http"
 name = "Uptime Kuma"
 url = "https://uptime.{{ homelab_domain }}"
