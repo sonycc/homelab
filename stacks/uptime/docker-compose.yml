@@ -1,12 +1,18 @@
 # Uptime Kuma — the monitor that says when everything else is down.
 #
-# Deliberately NOT behind cloudflared/NPM, unlike every other service: it has to
-# stay reachable when the thing it reports on is the tunnel or the proxy. So it
-# binds straight to the VM's interfaces and is reached over the LAN.
+# Reachable two ways, deliberately:
 #
-# Safe here because vm-core has no port forward at the router, so 0.0.0.0 means
-# the home LAN rather than the internet. Do not add an NPM proxy host or a tunnel
-# hostname for it.
+#   LAN    http://<vm-core>:3001      the port binding below
+#   Public https://uptime.<domain>    NPM proxy host → cloudflared, like every other service
+
+#
+# NPM proxy host (UI, http://127.0.0.1:81):
+#   uptime.<domain> → http://uptime-kuma:3001
+#     - Websockets Support: ON — mandatory. The whole UI is Socket.IO; without it
+#       the page loads and then hangs with no error.
+#     - Block Exploits: ON, wildcard cert, Force SSL, Trust forwarded headers ON
+#       (cloudflared reaches nginx on :80, so without it force-ssl loops).
+# Cloudflare tunnel public hostname: uptime.<domain> → http://nginx:80
 #
 # During the migration it watches both hosts, so it is the first service deployed
 # and the last one moved.

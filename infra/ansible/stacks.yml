@@ -38,6 +38,7 @@
       stack_name: uptime
       stack_paths: [docker-compose.yml]
       stack_templates:
+        - monitors/uptime.toml.j2
         - monitors/gitlab.toml.j2
         - monitors/registry.toml.j2
         - monitors/grafana.toml.j2
