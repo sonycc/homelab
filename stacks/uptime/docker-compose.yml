@@ -80,7 +80,8 @@ services:
     environment:
       TZ: ${TZ:-Europe/Oslo}
 
-      # Over the homelab network, so this does not depend on the LAN address.
+      # By container name over the stack's own network, so this does not depend on
+      # the LAN address the way NPM's proxy host has to.
       AUTOKUMA__KUMA__URL: http://uptime-kuma:3001
       AUTOKUMA__KUMA__USERNAME: ${KUMA_USER:?KUMA_USER not set}
       AUTOKUMA__KUMA__PASSWORD: ${KUMA_PASSWORD:?KUMA_PASSWORD not set}
@@ -92,6 +93,7 @@ services:
       AUTOKUMA__STATIC_MONITORS: /monitors
 
     volumes:
+      - autokuma_data:/data
       - ./monitors:/monitors:ro
 
     networks:
@@ -110,6 +112,7 @@ services:
 
 volumes:
   uptime_kuma_data:
+  autokuma_data:
 
 # Stack-local and not shared, so no other stack's aliases can land in this
 # resolver. AutoKuma reaches Kuma by name here; nothing else needs in.
