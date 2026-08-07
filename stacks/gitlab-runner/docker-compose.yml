@@ -36,6 +36,10 @@ services:
       - dind
 
     environment:
+      # Matches the other stacks and the host. Without it the container runs UTC while
+      # GitLab renders Europe/Oslo, so job and log timestamps disagree by the offset.
+      TZ: ${TZ:-Europe/Oslo}
+
       # dind service auth
       DOCKER_HOST: tcp://dind:2376
       DOCKER_TLS_VERIFY: 1
