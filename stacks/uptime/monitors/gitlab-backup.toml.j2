@@ -1,0 +1,14 @@
+# Push rather than http: the backup script pings this only after its verification
+# gate passes, so red means "no good backup last night" rather than "the host is
+# down". Nothing else here can tell those apart.
+#
+# Cron has no equivalent of systemd's Persistent=true, so a night missed while
+# vm-core was off is simply skipped. This monitor is what makes that visible.
+type = "push"
+name = "gitlab backup"
+push_token = "{{ gitlab_backup_push_token }}"
+
+# Nightly at 03:30, plus an hour of slack before the first retry.
+interval = 86400
+max_retries = 1
+retry_interval = 3600

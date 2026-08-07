@@ -1,0 +1,23 @@
+gitlab_backup_root: /var/backups/gitlab
+gitlab_backup_script: /usr/local/sbin/gitlab-backup.sh
+
+gitlab_backup_container: gitlab
+gitlab_backup_postgres_container: postgres
+gitlab_backup_db: gitlab
+
+# db: omnibus bundles pg_dump 17.8 against an 18.4 server and fails without failing the run (AUDIT M18),
+#   so the database is taken separately below.
+# registry: blobs are most of the size and are rebuildable from pipelines.
+gitlab_backup_skip: db,registry
+
+gitlab_backup_keep: 7
+
+gitlab_backup_minute: "30"
+gitlab_backup_hour: "3"
+
+# rsync target. Empty disables the step, leaving the sets on the disk they protect (AUDIT M16).
+gitlab_backup_offbox: ""
+gitlab_backup_offbox_opts: "-a --delete"
+
+# uptime-kuma push monitor. Empty disables. Pinged only after verification passes.
+gitlab_backup_push_url: ""

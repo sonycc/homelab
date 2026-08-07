@@ -1,0 +1,32 @@
+# 0700 root: a set holds gitlab-secrets.json and a full database dump.
+- name: Create {{ gitlab_backup_root }}
+  ansible.builtin.file:
+    path: "{{ gitlab_backup_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the backup script
+  ansible.builtin.template:
+    src: gitlab-backup.sh.j2
+    dest: "{{ gitlab_backup_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+# cron_file rather than root's crontab, so the entry is one removable file.
+#
+# flock because cron will happily start a second run over a first that is still going.
+# logger because cron mails output to root and there is no MTA here,
+# so without it a failure goes nowhere. (see `journalctl -t gitlab-backup`)
+- name: Schedule the nightly backup
+  ansible.builtin.cron:
+    name: gitlab backup
+    cron_file: gitlab-backup
+    user: root
+    minute: "{{ gitlab_backup_minute }}"
+    hour: "{{ gitlab_backup_hour }}"
+    job: >-
+      /usr/bin/flock -n /var/lock/gitlab-backup.lock {{ gitlab_backup_script }}
+      2>&1 | /usr/bin/logger -t gitlab-backup

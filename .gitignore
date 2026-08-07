@@ -105,6 +105,11 @@ infra/ansible/inventory.ini
 # Holds homelab_domain, kept out of the repo like DOMAIN in the .env files.
 infra/ansible/group_vars/*
 !infra/ansible/group_vars/*.example
+# Generation rules rather than values, so this one is tracked.
+!infra/ansible/group_vars/homelab.yml
+
+# Where the password lookup keeps the generated secrets it hands to homelab.yml.
+infra/ansible/.secrets/
 
 # =========================
 # 📁 Node / misc (if you add tools later)

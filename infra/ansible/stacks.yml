@@ -56,6 +56,7 @@
         - monitors/postgres.toml.j2
         - monitors/vm-core.toml.j2
         - monitors/vm-ci.toml.j2
+        - monitors/gitlab-backup.toml.j2
       tags: [uptime]
 
 # Its own play, because a CI job gets root on the Docker daemon that runs it,
