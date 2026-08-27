@@ -108,6 +108,12 @@ infra/ansible/group_vars/*
 # Generation rules rather than values, so this one is tracked.
 !infra/ansible/group_vars/homelab.yml
 
+# Per-VPS overrides. The keys in these are public, but they carry the name and
+# email of someone who is not us, and AUDIT already enumerates this homelab's
+# weaknesses in public.
+infra/ansible/host_vars/*
+!infra/ansible/host_vars/*.example
+
 # Where the password lookup keeps the generated secrets it hands to homelab.yml.
 infra/ansible/.secrets/
 

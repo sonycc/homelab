@@ -1,0 +1,172 @@
+# Small VPSes handed to external users, provisioned by modules/vps in tofu.
+#
+# Not part of common.yml: that targets the homelab group, and these are not docker
+# hosts.
+#
+#   ansible-playbook vps.yml                    # every VPS
+#   ansible-playbook vps.yml -l vps_nawth       # one of them
+#
+# The vars below are defaults for all of them. Anything per-instance — and
+# file_share_keys always is, since each user has their own — goes in
+# host_vars/<name>.yml, which is gitignored.
+
+- name: External VPSes
+  hosts: vps
+  become: true
+
+  vars:
+    # Account the external user logs in as. Owns file_share_root and nothing else.
+    file_share_user: share
+
+    # Matches data_path on the module. Override per host when it differs.
+    file_share_root: /srv/data
+
+    # Shipped with rsync. Confines a key to one directory and permits no other
+    # command, while still allowing delta transfer — which sftp-only would not, and
+    # over a domestic uplink that is the difference between an incremental sync and
+    # re-sending everything.
+    file_share_rrsync: /usr/bin/rrsync
+
+    # rw - upload and restore (what a backup target needs)
+    # ro - download only
+    # wo - upload only, cannot read back
+    file_share_mode: rw
+
+    # Blocks --delete, so a mistake on their side cannot empty the copy here. Costs
+    # them the ability to remove files at all; until snapshots exist it is the only
+    # thing between "replication" and "backup".
+    file_share_no_delete: true
+
+  handlers:
+    # Debian 13 starts sshd per connection via ssh.socket, so config is re-read anyway.
+    # Kept for the case where socket activation is off. Same as common.yml.
+    - name: Restart sshd
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+
+  tasks:
+    # Fail here rather than three tasks later with a confusing permission error.
+    - name: Require at least one public key
+      ansible.builtin.assert:
+        that: file_share_keys | default([]) | length > 0
+        fail_msg: >-
+          file_share_keys is empty for {{ inventory_hostname }}. Set it in
+          host_vars/{{ inventory_hostname }}.yml, otherwise this writes an
+          authorized_keys nobody can log in with and reports success.
+
+    # Fails closed. Without this a typo — "readonly" instead of "ro" — falls through
+    # to the unrestricted case and hands out read-write that looks configured.
+    - name: Require a known share mode
+      ansible.builtin.assert:
+        that: file_share_mode in ['rw', 'ro', 'wo']
+        fail_msg: "file_share_mode must be rw, ro or wo — got '{{ file_share_mode }}'."
+
+    # openssh-server is already in the template.
+    # unattended-upgrades is not carried in from common.yml that targets the homelab group
+    - name: Install rsync and unattended-upgrades
+      ansible.builtin.apt:
+        name:
+          - rsync
+          - unattended-upgrades
+        state: present
+        update_cache: true
+
+    - name: Enable unattended upgrades
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+        mode: "0644"
+
+    # Patching unattended is wanted, rebooting unattended is not, as it could drop an in-flight rsync.
+    - name: Never reboot on its own
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/51homelab-no-reboot
+        content: |
+          Unattended-Upgrade::Automatic-Reboot "false";
+        mode: "0644"
+
+    # If this is missing, the authorized_keys command fails every connection and nothing says why
+    - name: Check rrsync is present
+      ansible.builtin.stat:
+        path: "{{ file_share_rrsync }}"
+      register: rrsync_bin
+
+    - name: Require rrsync
+      ansible.builtin.assert:
+        that: rrsync_bin.stat.exists
+        fail_msg: "{{ file_share_rrsync }} not found. It ships with rsync; set file_share_rrsync to its path."
+
+    # A real shell, not nologin: command= is executed *through* the login shell, so
+    # nologin would reject the forced command along with everything else. The
+    # confinement is the key restrictions below.
+    - name: Create the share account
+      ansible.builtin.user:
+        name: "{{ file_share_user }}"
+        shell: /bin/sh
+        create_home: true
+        password: "!"   # locked; key auth only
+
+    - name: Own the share directory
+      ansible.builtin.file:
+        path: "{{ file_share_root }}"
+        state: directory
+        owner: "{{ file_share_user }}"
+        group: "{{ file_share_user }}"
+        mode: "0750"
+
+    - name: Create .ssh
+      ansible.builtin.file:
+        path: "/home/{{ file_share_user }}/.ssh"
+        state: directory
+        owner: "{{ file_share_user }}"
+        group: "{{ file_share_user }}"
+        mode: "0700"
+
+    # One expression rather than appends inside {% if %} blocks: this decides what
+    # the key may do, so it is worth being able to print it (-v shows the fact).
+    - name: Build the rrsync restriction
+      ansible.builtin.set_fact:
+        file_share_rrsync_command: >-
+          {{ ([file_share_rrsync]
+              + ([mode_flag] if mode_flag else [])
+              + (['-no-del'] if file_share_no_delete else [])
+              + [file_share_root]) | join(' ') }}
+      vars:
+        mode_flag: "{{ {'ro': '-ro', 'wo': '-wo'}.get(file_share_mode, '') }}"
+
+    # `restrict` is the catch-all — no pty, no port/agent/X11 forwarding, no user rc
+    # — and stays correct as OpenSSH adds options, where an explicit no-* list would
+    # not. command= then pins the only thing the key can do. Blank lines are ignored.
+    - name: Install the restricted authorized_keys
+      ansible.builtin.copy:
+        dest: "/home/{{ file_share_user }}/.ssh/authorized_keys"
+        owner: "{{ file_share_user }}"
+        group: "{{ file_share_user }}"
+        mode: "0600"
+        content: |
+          {% for key in file_share_keys %}
+          restrict,command="{{ file_share_rrsync_command }}" {{ key }}
+          {% endfor %}
+
+    # Mirrors common.yml except for PermitRootLogin: an LXC has no cloud-init, so
+    # root over key auth is Ansible's only way back in. `no` here locks the container
+    # out of management on the second run.
+    - name: Harden sshd
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/10-homelab.conf
+        content: |
+          PermitRootLogin prohibit-password
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+
+          Match User {{ file_share_user }}
+            AllowTcpForwarding no
+            AllowAgentForwarding no
+            X11Forwarding no
+            PermitTTY no
+        mode: "0644"
+        validate: sshd -t -f %s
+      notify: Restart sshd

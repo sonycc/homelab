@@ -36,10 +36,31 @@ locals {
   }
 }
 
+# Kept separate from local.vms on purpose. VPS containers are not docker hosts, so
+# they must not land in the homelab group that common.yml, docker.yml and stacks.yml
+# all target.
+#
+# Built from the module's outputs, so adding an instance to the for_each in vps.tf
+# puts it in the inventory with no change here.
+locals {
+  ct_addresses = {
+    for key, vps in module.vps : vps.name => {
+      lan      = vps.lan
+      internal = vps.internal
+      vm_id    = vps.vm_id
+    }
+  }
+}
+
 # lan is Ansible's connection target; vmbr1 has no uplink, so the control node cannot reach internal at all.
 output "vm_addresses" {
   description = "Per-VM LAN address, vmbr1 address and VM ID."
   value       = local.vm_addresses
+}
+
+output "vps_addresses" {
+  description = "Per-VPS LAN address, vmbr1 address and container ID."
+  value       = local.ct_addresses
 }
 
 output "vm_core_lan_ip" {

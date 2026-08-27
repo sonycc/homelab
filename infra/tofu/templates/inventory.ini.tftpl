@@ -9,3 +9,14 @@ ${children}
 [homelab:vars]
 ansible_user=${ansible_user}
 ansible_ssh_private_key_file=${ansible_ssh_private_key_file}
+
+${vps_groups}
+
+# Deliberately not children of homelab: these are not docker hosts, and
+# common.yml, docker.yml and stacks.yml all target that group.
+[vps:children]
+${vps_children}
+
+[vps:vars]
+ansible_user=root
+ansible_ssh_private_key_file=${ansible_ssh_private_key_file}

@@ -119,6 +119,9 @@ resource "proxmox_virtual_environment_firewall_rules" "vm_ci" {
   }
 }
 
+# VPS containers carry their own rules inside modules/vps, so a second one cannot be
+# added with a laxer set than the first.
+
 # Same as vm_core. This is the VM that hands root to CI jobs (AUDIT H1).
 resource "proxmox_virtual_environment_firewall_options" "vm_ci" {
   depends_on = [
