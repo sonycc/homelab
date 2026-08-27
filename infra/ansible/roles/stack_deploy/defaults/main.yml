@@ -1,0 +1,20 @@
+# https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_reuse_roles.html
+# https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_variables.html#variable-precedence-where-should-i-put-a-variable
+# defaults/ rather than vars/ so a caller can override these per stack.
+
+stack_src: "{{ playbook_dir }}/../../stacks/{{ stack_name }}"
+stack_dest: "/opt/homelab/{{ stack_name }}"
+
+# A list, not the whole directory: proxy/data, proxy/letsencrypt and homeassistant/config/.storage need to be moved once by hand.
+stack_paths:
+  - docker-compose.yml
+
+# Relative .j2 paths rendered with Ansible vars, landing at the same path minus the suffix.
+# For configs that needs a value the repo deliberately does not hold a copy of, e.g. secrets, the caller can override these per stack.
+stack_templates: []
+
+# Overridable per host: the proxy stack needs a different tunnel token on the new
+# host than the one the old host is still running on. Always lands as .env.
+stack_env_src: "{{ stack_src }}/.env"
+
+stack_wait_timeout: 300

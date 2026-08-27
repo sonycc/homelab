@@ -1,0 +1,7 @@
+proxmox_endpoint        = "https://10.0.1.2:8006/"
+proxmox_username        = "root@pam"
+proxmox_password        = "change_me"
+proxmox_token_id        = "terraform@pve!tofu"
+proxmox_token_secret    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# proxmox_otp — DO NOT set this here, in any tfvars file, or anywhere on disk.

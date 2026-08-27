@@ -1,0 +1,74 @@
+# Deploys compose stacks to the VM that owns them.
+#
+# Add a stack by adding a role entry; order within a play is deployment order, so
+# postgres lands before anything that depends on it. Tags let a single stack be
+# deployed on its own:
+#
+#   ansible-playbook stacks.yml --tags uptime
+
+- name: Stacks on vm-core
+  hosts: vm_core
+  become: true
+
+  roles:
+    # .env.vm-core, not .env:
+    # the old host is still running off the shared one, and this instance needs its own POSTGRES_BIND and BACKUP_HOST_DIR.
+    - role: stack_deploy
+      stack_name: postgres
+      stack_paths: [docker-compose.yml, backup.sh]
+      stack_env_src: "{{ stack_src }}/.env.vm-core"
+      tags: [postgres]
+
+    # data/ and letsencrypt/ are deliberately absent from stack_paths — runtime state, moved once by hand, not synced on every deploy.
+    - role: stack_deploy
+      stack_name: proxy
+      stack_paths: [docker-compose.yml, nginx.conf, fail2ban]
+      stack_env_src: "{{ stack_src }}/.env.vm-core"
+      tags: [proxy]
+
+    - role: stack_deploy
+      stack_name: monitoring
+      stack_paths: [docker-compose.yml, prometheus, provisioning]
+      tags: [monitoring]
+
+    # .env.vm-core: the HTTP and registry ports bind 127.0.0.1 here (AUDIT M9) while the
+    # old host is still serving on 0.0.0.0 from the shared .env.
+    - role: stack_deploy
+      stack_name: gitlab
+      stack_paths: [docker-compose.yml]
+      stack_env_src: "{{ stack_src }}/.env.vm-core"
+      stack_wait_timeout: 900   # raised from the default 300s because omnibus reconfigure on first boot runs for minutes before the healthcheck's own 3m start_period even begins.
+      tags: [gitlab]
+
+    # Monitors are templates because they name public hostnames, and the domain is
+    # deliberately not in this repo. Needs homelab_domain in group_vars.
+    # monitors/ is AutoKuma's source of truth; without it Kuma comes up empty.
+    - role: stack_deploy
+      stack_name: uptime
+      stack_paths: [docker-compose.yml]
+      stack_templates:
+        - monitors/uptime.toml.j2
+        - monitors/gitlab.toml.j2
+        - monitors/registry.toml.j2
+        - monitors/grafana.toml.j2
+        - monitors/homeassistant.toml.j2
+        - monitors/wud.toml.j2
+        - monitors/postgres.toml.j2
+        - monitors/vm-core.toml.j2
+        - monitors/vm-ci.toml.j2
+        - monitors/gitlab-backup.toml.j2
+      tags: [uptime]
+
+# Its own play, because a CI job gets root on the Docker daemon that runs it,
+#   so that daemon lives on a host holding nothing else (AUDIT H1).
+# Deploy only after GitLab is up on vm-core,
+#   registration fails against a GitLab that is not answering yet.
+- name: Stacks on vm-ci
+  hosts: vm_ci
+  become: true
+
+  roles:
+    - role: stack_deploy
+      stack_name: gitlab-runner
+      stack_paths: [docker-compose.yml, entrypoint.sh]
+      tags: [gitlab-runner]

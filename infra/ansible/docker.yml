@@ -1,0 +1,48 @@
+- name: Docker engine and the homelab network
+  hosts: homelab
+  become: true
+
+  vars:
+    # Hardcoded in gitlab's and homeassistant's trusted_proxies and in fail2ban's
+    # ignoreip. If Docker picks its own subnet instead, GitLab logs nginx as the
+    # client and a failed login can ban nginx at the Cloudflare edge.
+    homelab_subnet: 172.21.0.0/16
+
+  tasks:
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/apt_module.html
+    - name: Install Docker
+      ansible.builtin.apt:
+        name: [docker.io, docker-compose-v2]
+        state: present
+        update_cache: true
+
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/user_module.html
+    - name: Allow {{ ansible_user }} to use Docker without sudo
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Look for the homelab network
+      ansible.builtin.command: docker network inspect homelab
+      register: homelab_network
+      changed_when: false
+      failed_when: false
+
+    - name: Create the homelab network
+      ansible.builtin.command: docker network create homelab --subnet {{ homelab_subnet }}
+      when: homelab_network.rc != 0
+
+    - name: Read the network back
+      ansible.builtin.command: docker network inspect homelab
+      register: homelab_network_actual
+      changed_when: false
+
+    - name: Check the subnet is the pinned one
+      ansible.builtin.assert:
+        that:
+          - (homelab_network_actual.stdout | from_json)[0].IPAM.Config[0].Subnet == homelab_subnet
+        fail_msg: >-
+          homelab is on
+          {{ (homelab_network_actual.stdout | from_json)[0].IPAM.Config[0].Subnet }}, not {{ homelab_subnet }}.
+          Delete it and re-run; leaving it wrong breaks client-IP handling in gitlab, homeassistant and fail2ban.

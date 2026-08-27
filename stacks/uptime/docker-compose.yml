@@ -1,0 +1,120 @@
+# Uptime Kuma — the monitor that says when everything else is down.
+#
+# Reachable two ways, deliberately:
+#
+#   LAN    http://<vm-core>:3001      the port binding below
+#   Public https://uptime.<domain>    NPM proxy host → cloudflared, like every other service
+
+#
+# NOT on the homelab network, unlike every other stack. NPM holds split-horizon
+# aliases there (gitlab.<domain>, registry.<domain>) so internal clients reach the
+# same HTTPS URL as external ones. A monitor must not: it has to resolve public
+# names the way an outside client does, or it measures the proxy instead of the
+# service. On homelab, gitlab.<domain> resolved to NPM's container and the checks
+# never left the box.
+#
+# Consequences, both deliberate:
+#   - NPM reaches this by host address and published port, not container name.
+#   - The postgres monitor targets internal_ip:5432 rather than the container name,
+#     which also makes it a check of the real published bind.
+#
+# NPM proxy host (UI, http://127.0.0.1:81):
+#   uptime.<domain> → http://<vm-core LAN address>:3001
+#     - Websockets Support: ON — mandatory. The whole UI is Socket.IO; without it
+#       the page loads and then hangs with no error.
+#     - Block Exploits: ON, wildcard cert, Force SSL, Trust forwarded headers ON
+#       (cloudflared reaches nginx on :80, so without it force-ssl loops).
+# Cloudflare tunnel public hostname: uptime.<domain> → http://nginx:80
+#
+# During the migration it watches both hosts, so it is the first service deployed
+# and the last one moved.
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.0
+    container_name: uptime-kuma
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+
+    ports:
+      - "${UPTIME_PORT:-3001}:3001"
+
+    volumes:
+      - uptime_kuma_data:/app/data
+
+    networks:
+      - uptime
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+        reservations:
+          memory: 64m
+
+    # No healthcheck block — the image ships its own HEALTHCHECK, and that is what
+    # `docker compose up --wait` in the stack_deploy role gates on.
+
+  # Keeps the monitors in git. Uptime Kuma stores them in its own sqlite db with no
+  # import path, and its REST API is read-only — every write goes through Socket.IO,
+  # which is what AutoKuma speaks.
+  #
+  # Static files rather than the container-label mode it is better known for: the
+  # monitors here check public hostnames, and those URLs stay put when a service
+  # moves between hosts. That is the whole point of the tunnel flip. Labels would
+  # tie each monitor to the container it is supposed to be watching independently.
+  autokuma:
+    image: ghcr.io/bigboot/autokuma:2.0.0
+    container_name: autokuma
+    restart: unless-stopped
+    depends_on:
+      uptime-kuma:
+        condition: service_healthy
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+
+      # By container name over the stack's own network, so this does not depend on
+      # the LAN address the way NPM's proxy host has to.
+      AUTOKUMA__KUMA__URL: http://uptime-kuma:3001
+      AUTOKUMA__KUMA__USERNAME: ${KUMA_USER:?KUMA_USER not set}
+      AUTOKUMA__KUMA__PASSWORD: ${KUMA_PASSWORD:?KUMA_PASSWORD not set}
+
+      # No docker socket. The label source is the only thing that needs it, and
+      # disabling it keeps this container away from the daemon entirely (AUDIT L15).
+      AUTOKUMA__DOCKER__ENABLED: "false"
+
+      AUTOKUMA__STATIC_MONITORS: /monitors
+
+    volumes:
+      - autokuma_data:/data
+      - ./monitors:/monitors:ro
+
+    networks:
+      - uptime
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+        reservations:
+          memory: 32m
+
+volumes:
+  uptime_kuma_data:
+  autokuma_data:
+
+# Stack-local and not shared, so no other stack's aliases can land in this
+# resolver. AutoKuma reaches Kuma by name here; nothing else needs in.
+networks:
+  uptime:

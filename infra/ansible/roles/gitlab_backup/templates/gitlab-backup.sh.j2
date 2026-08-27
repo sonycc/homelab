@@ -1,0 +1,166 @@
+#!/bin/bash
+# Managed by Ansible — infra/ansible/roles/gitlab_backup. Edits here are overwritten.
+#
+# Writes one self-contained set per run:
+#
+#   <root>/<stamp>/gitlab-files.tar   repositories, uploads, artifacts, packages
+#   <root>/<stamp>/database.dump      pg_dump -Fc
+#   <root>/<stamp>/secrets/           gitlab-secrets.json + gitlab.rb
+#   <root>/<stamp>/MANIFEST           sizes, versions, restore procedure
+
+set -euo pipefail
+
+# Everything written below holds gitlab-secrets.json or a full database dump.
+# The parent directory is 0700, but the sets inside it should not rely on that.
+umask 077
+
+ROOT="{{ gitlab_backup_root }}"
+KEEP="{{ gitlab_backup_keep }}"
+SKIP="{{ gitlab_backup_skip }}"
+GITLAB="{{ gitlab_backup_container }}"
+PG="{{ gitlab_backup_postgres_container }}"
+DB="{{ gitlab_backup_db }}"
+OFFBOX="{{ gitlab_backup_offbox }}"
+PUSH_URL="{{ gitlab_backup_push_url }}"
+
+STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
+DEST="$ROOT/$STAMP"
+# Built under a name the retention glob does not match.
+STAGE="$ROOT/.in-progress-$$"
+
+log()  { echo "[gitlab-backup] $*"; }
+fail() { echo "[gitlab-backup] FAILED - $*" >&2; exit 1; }
+
+mkdir -p "$ROOT"
+rm -rf "$STAGE"
+mkdir -p "$STAGE/secrets"
+trap 'rm -rf "$STAGE"' EXIT
+
+# ── 1. File components ────────────────────────────────────────────────────────
+log "creating file backup (SKIP=$SKIP)"
+docker exec "$GITLAB" gitlab-backup create SKIP="$SKIP" CRON=1 \
+  || fail "gitlab-backup create returned non-zero"
+
+TAR_SRC="$(docker exec "$GITLAB" sh -c \
+  'ls -1t /var/opt/gitlab/backups/*_gitlab_backup.tar 2>/dev/null | head -1' | tr -d '\r')"
+[ -n "$TAR_SRC" ] || fail "no archive in /var/opt/gitlab/backups"
+
+log "copying $TAR_SRC out"
+docker cp "$GITLAB:$TAR_SRC" "$STAGE/gitlab-files.tar"
+
+# Otherwise these accumulate inside the gitlab_data volume.
+docker exec "$GITLAB" rm -f "$TAR_SRC"
+
+# ── 2. Database ───────────────────────────────────────────────────────────────
+# Inside the postgres container, so the client version matches the server and the
+# password stays in that container. No -t: a TTY would corrupt the binary stream.
+log "dumping database $DB"
+docker exec -e PGDATABASE="$DB" "$PG" sh -c \
+  'export PGPASSWORD="$POSTGRES_PASSWORD"; pg_dump -U "$POSTGRES_USER" -d "$PGDATABASE" -Fc' \
+  > "$STAGE/database.dump" || fail "pg_dump failed"
+
+# ── 3. Secrets ────────────────────────────────────────────────────────────────
+# Not in the tarball, and required to decrypt what is.
+for f in gitlab-secrets.json gitlab.rb; do
+  docker cp "$GITLAB:/etc/gitlab/$f" "$STAGE/secrets/$f" || fail "could not copy $f"
+done
+
+# ── 4. Verify ─────────────────────────────────────────────────────────────────
+# Structural, not size-based. What went wrong in M18 was an archive of the right
+# shape and a plausible size holding nothing, so these ask whether each component
+# has contents rather than how many bytes it has.
+tar_bytes="$(stat -c %s "$STAGE/gitlab-files.tar")"
+db_bytes="$(stat -c %s "$STAGE/database.dump")"
+repo_bytes="$(tar -tvf "$STAGE/gitlab-files.tar" \
+  | awk '$NF ~ /^repositories\// { s += $3 } END { printf "%d", s + 0 }')"
+
+head -c 5 "$STAGE/database.dump" | grep -q PGDMP \
+  || fail "database.dump is not a PostgreSQL custom-format dump"
+
+# The check M18 needed. A dump that failed still has a readable header; only a real
+# one has table data in its table of contents.
+tables="$(docker exec -i "$PG" pg_restore -l < "$STAGE/database.dump" \
+  | grep -c 'TABLE DATA' || true)"
+[ "$tables" -gt 0 ] || fail "database.dump lists no table data"
+
+[ "$repo_bytes" -gt 0 ] || fail "archive holds no repositories/ members"
+
+# SKIP=db means there should be no database member at all. If that is ever dropped,
+# this catches it rather than letting an empty one through.
+tar -tf "$STAGE/gitlab-files.tar" | grep -q '^db/database.sql.gz$' \
+  && fail "archive carries db/database.sql.gz — SKIP=db was dropped, see AUDIT M18"
+
+[ -s "$STAGE/secrets/gitlab-secrets.json" ] || fail "gitlab-secrets.json is empty"
+grep -q db_key_base "$STAGE/secrets/gitlab-secrets.json" \
+  || fail "gitlab-secrets.json has no db_key_base"
+
+# ── 5. Manifest ───────────────────────────────────────────────────────────────
+gitlab_version="$(docker exec "$GITLAB" cat /opt/gitlab/version-manifest.txt 2>/dev/null \
+  | head -1 || echo unknown)"
+pg_version="$(docker exec "$PG" postgres --version 2>/dev/null || echo unknown)"
+
+cat > "$STAGE/MANIFEST" <<EOF
+taken             $STAMP
+gitlab            $gitlab_version
+postgres          $pg_version
+skipped           $SKIP
+gitlab-files.tar  $tar_bytes bytes (repositories/ $repo_bytes)
+database.dump     $db_bytes bytes, $tables tables
+
+Restores in two parts. The archive holds no database and no secrets.
+
+  1. Quiesce, leaving gitaly and redis RUNNING:
+       docker exec $GITLAB gitlab-ctl stop puma sidekiq
+     Stopping everything fails the repository phase with
+     "dial unix ... gitaly.socket: no such file" while still reporting done.
+
+  2. Secrets first, before the database:
+       docker cp secrets/gitlab-secrets.json $GITLAB:/etc/gitlab/
+
+  3. Database:
+       docker exec -i $PG sh -c 'PGPASSWORD="\$POSTGRES_PASSWORD" pg_restore \\
+         -U "\$POSTGRES_USER" -d $DB --clean --if-exists' < database.dump
+
+  4. Files:
+       docker cp gitlab-files.tar $GITLAB:/var/opt/gitlab/backups/${STAMP}_gitlab_backup.tar
+       docker exec $GITLAB gitlab-backup restore BACKUP=$STAMP SKIP=db
+
+  5. Reconfigure and check the two halves agree:
+       docker exec $GITLAB gitlab-ctl reconfigure
+       docker exec $GITLAB gitlab-rake gitlab:doctor:secrets
+
+Registry blobs are not here. Re-push them by re-running their pipelines.
+EOF
+
+# ── 6. Commit ─────────────────────────────────────────────────────────────────
+rm -rf "$DEST"
+mv "$STAGE" "$DEST"
+trap - EXIT
+log "wrote $DEST"
+
+# ── 7. Retention ──────────────────────────────────────────────────────────────
+# After a verified success only, so a run of failures does not erode the history.
+mapfile -t old < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d -name '2*' \
+  | sort -r | tail -n +$((KEEP + 1)))
+for d in "${old[@]:-}"; do
+  [ -n "$d" ] || continue
+  log "pruning $(basename "$d")"
+  rm -rf "$d"
+done
+
+# ── 8. Off-box copy ───────────────────────────────────────────────────────────
+if [ -n "$OFFBOX" ]; then
+  log "syncing to $OFFBOX"
+  rsync {{ gitlab_backup_offbox_opts }} "$ROOT/" "$OFFBOX/" || fail "off-box sync failed"
+else
+  log "no off-box destination configured (AUDIT M16)"
+fi
+
+# ── 9. Report ─────────────────────────────────────────────────────────────────
+date +%s > "$ROOT/.last-success"
+
+if [ -n "$PUSH_URL" ]; then
+  curl -fsS -m 10 "$PUSH_URL" >/dev/null || log "WARNING - push notification failed"
+fi
+
+log "done"

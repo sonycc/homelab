@@ -9,7 +9,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
 
-    #No ports block — all consumers use internal Docker DNS (postgres:5432)
+    # Same-host consumers use Docker DNS (postgres:5432) and need no published port.
+    # POSTGRES_BIND is for consumers on another VM. It defaults to loopback rather
+    # than being required, so this file stays safe on the old host — bare "5432:5432"
+    # means 0.0.0.0, which is how that host ended up serving the LAN despite the
+    # comment here claiming it had no ports block.
+    ports:
+      - "${POSTGRES_BIND:-127.0.0.1}:5432:5432"
 
     networks:
       - homelab

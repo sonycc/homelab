@@ -1,0 +1,8 @@
+# The other one. Also down nine days, also loopback-bound on its host.
+# Gated by GitLab OIDC, so a redirect to the login page is the healthy answer.
+type = "http"
+name = "WUD"
+url = "https://wud.{{ homelab_domain }}"
+interval = 300
+max_retries = 3
+accepted_statuscodes = ["200-299", "302"]

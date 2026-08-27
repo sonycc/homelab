@@ -1,0 +1,9 @@
+# Rendered by stack_deploy. Edit the .j2, not the file on the VM.
+# End to end on purpose: this leaves the LAN, crosses Cloudflare and comes back
+# through whichever tunnel currently owns the hostname — so it keeps working
+# across the cutover without being touched.
+type = "http"
+name = "GitLab"
+url = "https://gitlab.{{ homelab_domain }}"
+interval = 60
+max_retries = 3

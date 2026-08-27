@@ -1,0 +1,12 @@
+# Tracked, unlike all.yml — this holds generation rules, not values.
+#
+# The password lookup writes the token to .secrets/ on first use and returns the
+# same value on every run afterwards, so both the Kuma monitor and the backup
+# script's push URL agree without either the token or a manual step being in git.
+# Delete the file under .secrets/ to rotate; both consumers pick up the new one on
+# the next play.
+
+gitlab_backup_push_token: >-
+  {{ lookup('ansible.builtin.password',
+            playbook_dir + '/.secrets/gitlab_backup_push_token',
+            chars='hexdigits', length=32) }}

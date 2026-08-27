@@ -3,6 +3,12 @@ services:
     image: cloudflare/cloudflared:2026.6.1
     restart: unless-stopped
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+
+    # Loopback only — the sole consumer is `tunnel ready` in the healthcheck below,
+    # running inside this container, so it never needs to leave the netns.
+    environment:
+      TUNNEL_METRICS: 127.0.0.1:60123
+
     depends_on:
       nginx:
         condition: service_healthy
@@ -18,10 +24,11 @@ services:
         reservations:
           memory: 32m
     healthcheck:
-      test: ["CMD", "cloudflared", "tunnel", "info"]
+      test: ["CMD", "cloudflared", "tunnel", "ready"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   # All public traffic enters via the cloudflared tunnel → nginx:80.
   # nginx has no host-level port bindings; it is only reachable via the Docker network.
@@ -35,18 +42,10 @@ services:
   #   registry.${DOMAIN}    → http://gitlab:5050
   #   ha.${DOMAIN}          → http://homeassistant:8123  (Websockets Support: on)
   #   wud.${DOMAIN}         → http://wud:3000
-  #   panel.${DOMAIN}       → http://pelican-panel:80    (Websockets Support: on)
-  #   node.${DOMAIN}        → http://pelican-wings:8080  (Websockets Support: on,
-  #                                                       Client Max Body Size: 0)
   #
-  # Cloudflare tunnel public hostnames (Zero Trust dashboard):
-  #   gitlab.${DOMAIN}      → http://nginx:80
-  #   monitoring.${DOMAIN}  → http://nginx:80
-  #   registry.${DOMAIN}    → http://nginx:80
-  #   ha.${DOMAIN}          → http://nginx:80
-  #   wud.${DOMAIN}         → http://nginx:80
-  #   panel.${DOMAIN}       → http://nginx:80
-  #   node.${DOMAIN}        → http://nginx:80
+  # Cloudflare tunnel public hostnames
+  # * → http://nginx:80.
+
   nginx:
     image: 'jc21/nginx-proxy-manager:2.15.1'
     restart: unless-stopped
@@ -80,12 +79,6 @@ services:
         aliases:
           - gitlab.${DOMAIN:?DOMAIN not set}
           - registry.${DOMAIN:?DOMAIN not set}
-          # The pelican panel calls its wings node by FQDN, and wings calls back the
-          # same way. Both are container-to-container, so without these aliases the
-          # lookups leave the host, hairpin through the tunnel, and fail whenever
-          # the WAN path is down.
-          - panel.${DOMAIN:?DOMAIN not set}
-          - node.${DOMAIN:?DOMAIN not set}
 
     security_opt:
       - no-new-privileges:true
@@ -104,102 +97,115 @@ services:
       timeout: 10s
       retries: 3
 
-  # fail2ban — parses the logs of every public-facing service and bans abusive
-  # clients through the Cloudflare API.
-  #
-  # It bans at the edge rather than with iptables because nothing local can see a
-  # real client address: packets arrive from the cloudflared container, and the
-  # true IP survives only in the CF-Connecting-IP header. See
-  # fail2ban/action.d/cloudflare-api.conf for the full reasoning, and
-  # fail2ban/jail.d/homelab.conf for the jails and their thresholds.
-  #
-  # Consequence worth remembering: an edge ban applies to the whole zone, so a
-  # false positive blocks every hostname at once. The LAN paths in — NPM's admin
-  # UI on 127.0.0.1:81 and HA on 127.0.0.1:8123 — are unaffected and are the way
-  # back in, along with the Cloudflare dashboard.
-  #
-  # Deliberately NOT granted cap_add: NET_ADMIN. The usual fail2ban deployment
-  # needs it to write iptables rules; this one only makes HTTPS calls, so a
-  # process that parses attacker-controlled log lines stays unprivileged.
-  #
-  # Start order: the gitlab and monitoring stacks own the log volumes mounted
-  # below, so both must have been brought up at least once before this service
-  # will start.
-  fail2ban:
-    image: crazymax/fail2ban:1.1.0
-    container_name: fail2ban
-    restart: unless-stopped
-    depends_on:
-      nginx:
-        condition: service_healthy
+# ── fail2ban: commented out for the migration, re-enable once gitlab and
+# monitoring are on this host ──────────────────────────────────────────────────
+#
+# Its gitlab_logs and grafana_logs mounts are external volumes owned by those
+# stacks. Compose refuses to bring up the whole stack while they are missing —
+# "external volume gitlab_gitlab_logs not found" — which is what blocked this
+# stack from deploying at all.
+#
+# Consequence while it is off: a hostname flipped to tunnel B has no edge banning.
+# The old host's fail2ban cannot read this NPM's logs, so protection stops at the
+# moment of the flip rather than at decommissioning. Uncomment the service and the
+# two external volumes at the bottom to restore it; nothing else changes.
+#
+#   # fail2ban — parses the logs of every public-facing service and bans abusive
+#   # clients through the Cloudflare API.
+#   #
+#   # It bans at the edge rather than with iptables because nothing local can see a
+#   # real client address: packets arrive from the cloudflared container, and the
+#   # true IP survives only in the CF-Connecting-IP header. See
+#   # fail2ban/action.d/cloudflare-api.conf for the full reasoning, and
+#   # fail2ban/jail.d/homelab.conf for the jails and their thresholds.
+#   #
+#   # Consequence worth remembering: an edge ban applies to the whole zone, so a
+#   # false positive blocks every hostname at once. The LAN paths in — NPM's admin
+#   # UI on 127.0.0.1:81 and HA on 127.0.0.1:8123 — are unaffected and are the way
+#   # back in, along with the Cloudflare dashboard.
+#   #
+#   # Deliberately NOT granted cap_add: NET_ADMIN. The usual fail2ban deployment
+#   # needs it to write iptables rules; this one only makes HTTPS calls, so a
+#   # process that parses attacker-controlled log lines stays unprivileged.
+#   #
+#   # Start order: the gitlab and monitoring stacks own the log volumes mounted
+#   # below, so both must have been brought up at least once before this service
+#   # will start.
+#   fail2ban:
+#     image: crazymax/fail2ban:1.1.0
+#     container_name: fail2ban
+#     restart: unless-stopped
+#     depends_on:
+#       nginx:
+#         condition: service_healthy
 
-    environment:
-      TZ: "Europe/Oslo"
-      F2B_LOG_TARGET: STDOUT
-      F2B_LOG_LEVEL: ${F2B_LOG_LEVEL:-INFO}
-      # Purge ban history older than this from fail2ban's own db. Must exceed the
-      # longest bantime.maxtime (7d) or escalation for repeat offenders resets.
-      F2B_DB_PURGE_AGE: ${F2B_DB_PURGE_AGE:-30d}
-      # Read by the ban action straight from the environment, so the token never
-      # has to appear in a tracked config file.
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN not set}
-      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID not set}
+#     environment:
+#       TZ: "Europe/Oslo"
+#       F2B_LOG_TARGET: STDOUT
+#       F2B_LOG_LEVEL: ${F2B_LOG_LEVEL:-INFO}
+#       # Purge ban history older than this from fail2ban's own db. Must exceed the
+#       # longest bantime.maxtime (7d) or escalation for repeat offenders resets.
+#       F2B_DB_PURGE_AGE: ${F2B_DB_PURGE_AGE:-30d}
+#       # Read by the ban action straight from the environment, so the token never
+#       # has to appear in a tracked config file.
+#       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN not set}
+#       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID not set}
 
-    volumes:
-      # Config is read-only; only the ban database is writable.
-      - ./fail2ban/jail.d:/data/jail.d:ro
-      - ./fail2ban/filter.d:/data/filter.d:ro
-      - ./fail2ban/action.d:/data/action.d:ro
-      # The ban logic itself. It lives in a script rather than inline in the
-      # action file because fail2ban's parser strips anything after a
-      # whitespace-preceded semicolon — see fail2ban/action.d/cloudflare-api.conf.
-      - ./fail2ban/bin:/data/bin:ro
-      - fail2ban_db:/data/db
+#     volumes:
+#       # Config is read-only; only the ban database is writable.
+#       - ./fail2ban/jail.d:/data/jail.d:ro
+#       - ./fail2ban/filter.d:/data/filter.d:ro
+#       - ./fail2ban/action.d:/data/action.d:ro
+#       # The ban logic itself. It lives in a script rather than inline in the
+#       # action file because fail2ban's parser strips anything after a
+#       # whitespace-preceded semicolon — see fail2ban/action.d/cloudflare-api.conf.
+#       - ./fail2ban/bin:/data/bin:ro
+#       - fail2ban_db:/data/db
 
-      # Log sources, all read-only.
-      - ./data/logs:/var/log/npm:ro
-      - gitlab_logs:/var/log/gitlab:ro
-      - grafana_logs:/var/log/grafana:ro
-      # Note: this is HA's whole config directory, not just the log file — a
-      # single-file bind mount breaks the moment HA rotates the log and the inode
-      # changes. It is read-only, but it does mean this container can read
-      # .storage/auth. Accepted as the lesser evil against a jail that silently
-      # stops working after the first rotation.
-      - ../homeassistant/config:/var/log/ha:ro
+#       # Log sources, all read-only.
+#       - ./data/logs:/var/log/npm:ro
+#       - gitlab_logs:/var/log/gitlab:ro
+#       - grafana_logs:/var/log/grafana:ro
+#       # Note: this is HA's whole config directory, not just the log file — a
+#       # single-file bind mount breaks the moment HA rotates the log and the inode
+#       # changes. It is read-only, but it does mean this container can read
+#       # .storage/auth. Accepted as the lesser evil against a jail that silently
+#       # stops working after the first rotation.
+#       - ../homeassistant/config:/var/log/ha:ro
 
-    networks:
-      - homelab
+#     networks:
+#       - homelab
 
-    security_opt:
-      - no-new-privileges:true
+#     security_opt:
+#       - no-new-privileges:true
 
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-          cpus: "0.25"
-        reservations:
-          memory: 64m
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 256m
+#           cpus: "0.25"
+#         reservations:
+#           memory: 64m
 
-    healthcheck:
-      test: ["CMD", "fail2ban-client", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+#     healthcheck:
+#       test: ["CMD", "fail2ban-client", "ping"]
+#       interval: 30s
+#       timeout: 10s
+#       retries: 3
+#       start_period: 30s
 
 
-volumes:
-  fail2ban_db:
+# volumes:
+#   fail2ban_db:
 
-  # Owned by the gitlab and monitoring stacks; mounted here read-only so fail2ban
-  # can tail application logs that are not bind-mounted into the repo.
-  gitlab_logs:
-    external: true
-    name: gitlab_gitlab_logs
-  grafana_logs:
-    external: true
-    name: monitoring_grafana_logs
+#   # Owned by the gitlab and monitoring stacks; mounted here read-only so fail2ban
+#   # can tail application logs that are not bind-mounted into the repo.
+#   gitlab_logs:
+#     external: true
+#     name: gitlab_gitlab_logs
+#   grafana_logs:
+#     external: true
+#     name: monitoring_grafana_logs
 
 
 networks:

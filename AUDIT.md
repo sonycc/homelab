@@ -5,7 +5,8 @@
 **Scope:** All stacks under `stacks/` — compose files, env examples, scripts, nginx configs, prometheus config  
 **Updated:** 2026-07-26 — added H2 for the new `pelican` stack  
 **Updated:** 2026-07-27 — fail2ban deployed (L2); added M8–M15 and L9–L16 from the fail2ban and Home Assistant reviews  
-**Updated:** 2026-07-31 — postgres backups repaired and a restore proven; added M16–M17 for what that left open
+**Updated:** 2026-07-31 — postgres backups repaired and a restore proven; added M16–M17 for what that left open  
+**Updated:** 2026-08-06 — GitLab migrated to Proxmox; added M18, found while taking the migration backup
 
 ---
 
@@ -129,11 +130,6 @@ Unlike NPM's admin UI (`127.0.0.1:81`) and Home Assistant (`127.0.0.1:8123`), th
 
 ---
 
-### L7 — `test.local` proxy host missing exploit-blocking include
-
-`stacks/proxy/data/nginx/proxy_host/1.conf` does not include `conf.d/include/block-exploits.conf`, unlike the `gitlab.<domain>` proxy host. Either add the include or confirm this host is not reachable externally.
-
----
 
 ### L8 — Image freshness tracking ✓ resolved by WUD
 
@@ -256,6 +252,31 @@ Postponed deliberately — the backups exist and restore correctly, which is the
 This is the same shape as M14, arrived at from a different service: a correct failure signal with no delivery mechanism. The failure modes are quiet ones — credentials rotated, the postgres host renamed, `BACKUP_HOST_DIR` unmounted, the disk full.
 
 **Fix:** `stacks/wud/.env` already holds a working `DISCORD_WEBHOOK_URL`. Wiring `backup.sh`'s failure path and M14's ban-failure path to the same webhook is one small change covering both, and is worth doing once rather than twice.
+
+---
+
+### M18 — `gitlab-backup create` omits the database and reports success
+
+**Files:** `stacks/gitlab/docker-compose.yml`, `stacks/postgres/docker-compose.yml`
+
+GitLab's omnibus image bundles pg_dump 17.8; the shared postgres stack runs 18.4. pg_dump refuses to dump a server newer than itself, so the database phase fails — and the rake task carries on through repositories, uploads, artifacts and the registry, builds the archive, and ends with `Backup <id> is done.`
+
+The result passes every check short of opening it:
+
+- The archive is 12.5 GB and `tar tf` lists a full component set, including `db/database.sql.gz`.
+- That member is **20 bytes** — the gzip header for an empty stream.
+- `backup_information.yml` records `:skipped: ''`, because the database was not skipped. It failed. Nothing in the metadata distinguishes the two.
+- The command's own closing line claims success.
+
+So a size check passes, a listing passes, and the archive restores everything except the thing that gives it meaning. Discovered only because the error scrolled past during a migration; a `2026-08-05` backup taken the same way had already been recorded in the migration plan as verified, on the strength of exactly those checks.
+
+This is not a one-off. It recurs on every `gitlab-backup create` until GitLab's bundled client catches up with the server, and it will return whenever postgres is upgraded ahead of GitLab again.
+
+**Fix:** take the database separately with a client that matches the server — `pg_dump` from inside the postgres container — and restore in two parts: `pg_restore` the database, then `gitlab-backup restore SKIP=db` for everything else. Quiesce GitLab (`gitlab-ctl stop puma sidekiq`) across both so the two halves agree.
+
+**Detector worth having:** any backup whose `db/database.sql.gz` is under a few hundred bytes is empty. That is a one-line check and the only cheap way to catch this class.
+
+Same family as M14 and M17 — a correct-looking success from a process that did nothing — and the sharpest instance so far, because here the failure is sealed inside an artifact that looks right from the outside.
 
 ---
 

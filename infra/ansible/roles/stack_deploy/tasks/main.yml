@@ -1,0 +1,84 @@
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/assert_module.html
+- name: Require a stack name
+  ansible.builtin.assert:
+    that: stack_name is defined
+    fail_msg: >-
+      stack_deploy needs stack_name, e.g.
+      roles: [{ role: stack_deploy, stack_name: postgres }]
+
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/file_module.html
+- name: Create {{ stack_dest }}
+  ansible.builtin.file:
+    path: "{{ stack_dest }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/copy_module.html
+# No trailing slash on src, so a directory is copied as itself rather than having its contents unpacked into dest.
+# 
+# 0755 because scripts here are executed by their container.
+# Windows bind mounts invent that bit, so the old host never needed it.
+# On a real VM the mode is real and a 0644 backup.sh dies with permission denied.
+- name: Copy stack files
+  ansible.builtin.copy:
+    src: "{{ stack_src }}/{{ item }}"
+    dest: "{{ stack_dest }}/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ stack_paths }}"
+
+# template does not create parent directories, unlike copy.
+- name: Create template directories
+  ansible.builtin.file:
+    path: "{{ stack_dest }}/{{ item | dirname }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ stack_templates }}"
+
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/template_module.html
+- name: Render stack templates
+  ansible.builtin.template:
+    src: "{{ stack_src }}/{{ item }}"
+    dest: "{{ stack_dest }}/{{ item | regex_replace('\\.j2$', '') }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  loop: "{{ stack_templates }}"
+
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/stat_module.html
+# delegate_to: localhost because the file lives on the control node. Not every
+# stack has one — uptime has no secrets at all.
+- name: Look for an env file
+  ansible.builtin.stat:
+    path: "{{ stack_env_src }}"
+  delegate_to: localhost
+  become: false
+  register: stack_env
+  changed_when: false
+
+- name: Copy the env file
+  ansible.builtin.copy:
+    src: "{{ stack_env_src }}"
+    dest: "{{ stack_dest }}/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  when: stack_env.stat.exists
+
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/command_module.html
+# --wait exits non-zero if a container never reaches healthy, so this task is the health gate.
+# Compose writes progress to stderr, hence changed_when reads it.
+- name: Bring the stack up
+  ansible.builtin.command:
+    cmd: docker compose up -d --wait --wait-timeout {{ stack_wait_timeout }}
+    chdir: "{{ stack_dest }}"
+  register: stack_compose_up
+  changed_when: >-
+    'Started' in stack_compose_up.stderr
+    or 'Created' in stack_compose_up.stderr
+    or 'Recreated' in stack_compose_up.stderr
