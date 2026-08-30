@@ -11,4 +11,7 @@ resource "proxmox_download_file" "ubuntu_cloudimg" {
 
   checksum           = "9dc7c5363c0146a08ba0c9aa834d82c2c6dfbb1c471ad9a2f0aba1189e21be05"
   checksum_algorithm = "sha256"
+
+  # Ubuntu republishes this URL on every point release and we do not need to update when it does.
+  overwrite = false
 }
