@@ -1,0 +1,69 @@
+# Copy to vps-<VPS-NAME>.yml (gitignored) and fill in.
+# One per instance in vps.tf
+# the filename must match the hostname the module builds.
+
+# Accounts on this VPS, keyed by login name. Each gets /srv/data/<login>, both
+# protocols, and whichever credential it was given.
+share_users:
+
+  <user-1>:
+    # The share directory's mode, quoted. Ordinary chmod digits:
+    #
+    #   0700
+    #   ││││
+    #   │││└─ other   everyone else on the box. 0 unless another account reads here
+    #   ││└── group   THE ACCOUNT. This is the digit that decides what it may do
+    #   │└─── owner   root, always 7. The account is not the owner, which is what stops it chmod'ing its way to more than it was given
+    #   └──── setuid/setgid/sticky, 0 unless you have a reason
+    #
+    # The group digit is 4 read + 2 write + 1 enter, and only three values mean
+    # anything here:
+    #
+    #   7  rwx  read and write
+    #   5  r-x  download only
+    #   3  -wx  drop-box: upload only, cannot list or read back
+    #
+    # 1 enter is in all three because a directory that cannot be entered cannot be
+    # used at all. The rest are refused: 2, 4 and 6 are read or write without entry,
+    # 1 is entry with neither, and 0 is nothing.
+    #
+    #   0770  rwxrwx---   read and write
+    #   0750  rwxr-x---   download only
+    #   0730  rwx-wx---   drop-box
+    #   0775  rwxrwxr-x   read and write, and the rest of the box can look in
+    #
+    # Deletion follows write, as it does anywhere else.
+    mode: "0770"
+
+    # A password, keys, or both  at least one.
+    # -Either works with either protocol.
+    #
+    # Generate the hash with `openssl passwd -6` (or `mkpasswd -m sha512crypt`).
+    # Single-quote the $6$... output, if not, Ansible will read the $ as a variable.
+    password_hash: '$6$...'
+
+# Ask for the .pub key
+# Removing a key here and re-running revokes it.
+    keys:
+      - "ssh-ed25519 AAAA... user@their-laptop"
+      - "ssh-ed25519 AAAA... user@their-desktop"
+
+  # A second account, download only, keys and no password. Delete it if this VPS has
+  # one user.
+  <user-2>:
+    mode: "0750"
+    keys:
+      - "ssh-ed25519 AAAA... someone@else"
+
+    # Optional, and only together: two accounts pointed at one directory need the
+    # same path, group and mode. The playbook refuses the run if they disagree.
+    #
+    # path: /srv/data/project
+    # group: project
+
+# Both protocols are always available, whichever the client speaks:
+#
+#   WinSCP    protocol SFTP, port 22, the login and credential above
+#   rsync     rsync -avz --partial ./tree/ <user-1>@<host>:/
+#
+# share_root: /srv/data       # only when this host overrides data_path on the module

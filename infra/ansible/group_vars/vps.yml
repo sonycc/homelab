@@ -1,0 +1,28 @@
+# Defaults for vps.yml. Here rather than in the play's own vars, which outrank
+# host_vars and would make every per-host setting silently do nothing.
+
+# Keyed by login name. See the example host_vars for the shape.
+share_users: {}
+
+# Each account gets share_root/<login> unless it sets its own path. Matches
+# data_path on the module.
+share_root: /srv/data
+
+# root owns every share directory and the account reaches it through a group, so
+# the mode is enforced by the kernel and the account cannot chmod its way out of
+# it. The group digit therefore decides what the account may do, and these are the
+# server flags that say the same thing at the ssh layer.
+#
+# 7 rwx  read and write
+# 5 r-x  read only
+# 3 -wx  write only
+#
+# x is not optional: without it the directory cannot be entered at all.
+share_flags:
+  "3": { sftp: "-P read", rsync: "-wo" }
+  "5": { sftp: "-R", rsync: "-ro" }
+  "7": { sftp: "", rsync: "" }
+
+share_rrsync: /usr/bin/rrsync
+share_sftp_server: /usr/lib/openssh/sftp-server
+share_dispatch_dir: /usr/local/bin

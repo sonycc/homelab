@@ -1,69 +1,109 @@
 # Small VPSes handed to external users, provisioned by modules/vps in tofu.
-#
-# Not part of common.yml: that targets the homelab group, and these are not docker
-# hosts.
+# Not part of common.yml: that targets the homelab group.
 #
 #   ansible-playbook vps.yml                    # every VPS
-#   ansible-playbook vps.yml -l vps_nawth       # one of them
+#   ansible-playbook vps.yml -l vps_<VPS-NAME>  # one of them
 #
-# The vars below are defaults for all of them. Anything per-instance — and
-# file_share_keys always is, since each user has their own — goes in
-# host_vars/<name>.yml, which is gitignored.
+# Per-instance settings go in host_vars/<VPS-NAME>.yml, which is gitignored.
 
 - name: External VPSes
   hosts: vps
   become: true
 
-  vars:
-    # Account the external user logs in as. Owns file_share_root and nothing else.
-    file_share_user: share
-
-    # Matches data_path on the module. Override per host when it differs.
-    file_share_root: /srv/data
-
-    # Shipped with rsync. Confines a key to one directory and permits no other
-    # command, while still allowing delta transfer — which sftp-only would not, and
-    # over a domestic uplink that is the difference between an incremental sync and
-    # re-sending everything.
-    file_share_rrsync: /usr/bin/rrsync
-
-    # rw - upload and restore (what a backup target needs)
-    # ro - download only
-    # wo - upload only, cannot read back
-    file_share_mode: rw
-
-    # Blocks --delete, so a mistake on their side cannot empty the copy here. Costs
-    # them the ability to remove files at all; until snapshots exist it is the only
-    # thing between "replication" and "backup".
-    file_share_no_delete: true
+  # No vars block: play vars outrank host_vars, so the defaults live in
+  # group_vars/vps.yml where a host can override them.
 
   handlers:
-    # Debian 13 starts sshd per connection via ssh.socket, so config is re-read anyway.
-    # Kept for the case where socket activation is off. Same as common.yml.
+    # Debian 13 re-reads the config per connection via ssh.socket. Kept for the case where socket activation is off.
     - name: Restart sshd
       ansible.builtin.service:
         name: ssh
         state: restarted
 
   tasks:
-    # Fail here rather than three tasks later with a confusing permission error.
-    - name: Require at least one public key
+    - name: Require at least one account
       ansible.builtin.assert:
-        that: file_share_keys | default([]) | length > 0
+        that: share_users | length > 0
+        fail_msg: "share_users is empty. Set it in host_vars/{{ inventory_hostname }}.yml."
+
+    # Every later task works from this rather than re-deriving the defaults.
+    - name: Resolve each account's directory
+      ansible.builtin.set_fact:
+        share_dirs: "{{ share_dirs | default([]) + [{
+          'name': item.key,
+          'path': item.value.path   | default(share_root ~ '/' ~ item.key),
+          'group': item.value.group | default(item.key),
+          'mode': item.value.mode   | default('') }] }}"
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Require a credential for every account
+      ansible.builtin.assert:
+        that: item.value['keys'] | default([]) | length > 0
+          or item.value.password_hash | default('') | length > 0
         fail_msg: >-
-          file_share_keys is empty for {{ inventory_hostname }}. Set it in
-          host_vars/{{ inventory_hostname }}.yml, otherwise this writes an
-          authorized_keys nobody can log in with and reports success.
+          {{ item.key }} has neither keys nor password_hash.
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
 
-    # Fails closed. Without this a typo — "readonly" instead of "ro" — falls through
-    # to the unrestricted case and hands out read-write that looks configured.
-    - name: Require a known share mode
+    # A plaintext password would be installed verbatim as the shadow hash: no login
+    # would match it, and nothing would say so.
+    - name: Require hashed passwords
       ansible.builtin.assert:
-        that: file_share_mode in ['rw', 'ro', 'wo']
-        fail_msg: "file_share_mode must be rw, ro or wo — got '{{ file_share_mode }}'."
+        that: item.value.password_hash is match('^\$[0-9a-z]+\$')
+        fail_msg: "{{ item.key }}: password_hash must be a crypt hash, starting with $6$ or similar."
+      when: item.value.password_hash | default('') | length > 0
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
 
-    # openssh-server is already in the template.
-    # unattended-upgrades is not carried in from common.yml that targets the homelab group
+    # Fail closed: an unknown group digit would otherwise fall through to no flags at
+    # all and hand out write access that looks configured.
+    - name: Require a usable mode
+      ansible.builtin.assert:
+        that:
+          - item.mode is match('^[0-7]{3,4}$')
+          - item.mode[-2:-1] in share_flags
+        fail_msg: >-
+          {{ item.name }}: mode is '{{ item.mode }}'. It must be octal, quoted, with a
+          group digit of {{ share_flags.keys() | join(', ') }} — that digit is what
+          the account gets.
+      loop: "{{ share_dirs }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # share_root itself is root-owned and holds the accounts' directories. An account
+    # given it as its own path would take the group and mode of the directory the
+    # others sit in, and could then delete them.
+    - name: Refuse the base directory as a share
+      ansible.builtin.assert:
+        that: item.path != share_root
+        fail_msg: >-
+          {{ item.name }}: path is {{ share_root }}, which holds every account's
+          directory. Leave path unset to get {{ share_root }}/{{ item.name }}.
+      loop: "{{ share_dirs }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # Two accounts may share a directory, but only by agreeing on it.
+    # Whichever ran last would otherwise win and take the directory from the other,
+    #   and the run would report success either way.
+    - name: Require agreement where accounts share a directory
+      ansible.builtin.assert:
+        that:
+          - item.1 | map(attribute='group') | unique | length == 1
+          - item.1 | map(attribute='mode') | unique | length == 1
+        fail_msg: >-
+          {{ item.1 | map(attribute='name') | join(' and ') }} both use {{ item.0 }}
+          but disagree on group or mode. Give them the same of each, or separate paths.
+      loop: "{{ share_dirs | groupby('path') }}"
+      loop_control:
+        label: "{{ item.0 }}"
+
+    # openssh-server is already in the template. unattended-upgrades is not carried in
+    # from common.yml, which targets the homelab group.
     - name: Install rsync and unattended-upgrades
       ansible.builtin.apt:
         name:
@@ -80,7 +120,7 @@
           APT::Periodic::Unattended-Upgrade "1";
         mode: "0644"
 
-    # Patching unattended is wanted, rebooting unattended is not, as it could drop an in-flight rsync.
+    # An unattended reboot could drop an in-flight transfer.
     - name: Never reboot on its own
       ansible.builtin.copy:
         dest: /etc/apt/apt.conf.d/51homelab-no-reboot
@@ -88,72 +128,159 @@
           Unattended-Upgrade::Automatic-Reboot "false";
         mode: "0644"
 
-    # If this is missing, the authorized_keys command fails every connection and nothing says why
-    - name: Check rrsync is present
+    # Without these the forced command fails every connection and nothing says why.
+    - name: Check the two servers are present
       ansible.builtin.stat:
-        path: "{{ file_share_rrsync }}"
-      register: rrsync_bin
+        path: "{{ item }}"
+      register: share_bins
+      loop:
+        - "{{ share_rrsync }}"
+        - "{{ share_sftp_server }}"
 
-    - name: Require rrsync
+    - name: Require both servers
       ansible.builtin.assert:
-        that: rrsync_bin.stat.exists
-        fail_msg: "{{ file_share_rrsync }} not found. It ships with rsync; set file_share_rrsync to its path."
+        that: share_bins.results | rejectattr('stat.exists') | list | length == 0
+        fail_msg: >-
+          Missing: {{ share_bins.results | rejectattr('stat.exists')
+                      | map(attribute='item') | join(', ') }}.
+          Both ship with rsync and openssh-server; correct share_rrsync or
+          share_sftp_server if this distribution puts them elsewhere.
 
-    # A real shell, not nologin: command= is executed *through* the login shell, so
-    # nologin would reject the forced command along with everything else. The
-    # confinement is the key restrictions below.
-    - name: Create the share account
+    - name: Own the base directory
+      ansible.builtin.file:
+        path: "{{ share_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    # Membership is what the catch-all Match block at the end of sshd_config keys on.
+    - name: Create the account group
+      ansible.builtin.group:
+        name: shareusers
+        system: true
+
+    # Only the ones that are not an account's own, which the user module makes.
+    - name: Create any named groups
+      ansible.builtin.group:
+        name: "{{ item }}"
+        system: true
+      loop: "{{ share_dirs | map(attribute='group') | unique
+                | difference(share_users.keys() | list) }}"
+
+    # A real shell, not nologin: a ForceCommand is executed *through* the login shell.
+    # "!" is a locked password, which is what an account keeps when only keys are set.
+    - name: Create the accounts
       ansible.builtin.user:
-        name: "{{ file_share_user }}"
+        name: "{{ item.key }}"
         shell: /bin/sh
         create_home: true
-        password: "!"   # locked; key auth only
+        groups: "{{ ['shareusers'] + ([item.value.group] if item.value.group is defined else []) }}"
+        append: true
+        password: "{{ item.value.password_hash | default('!', true) }}"
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
 
-    - name: Own the share directory
+    # The group is the account's own unless it names one, so the group digit is what
+    # the account gets and the other digit decides whether the rest of the box can
+    # look in.
+    - name: Own the share directories
       ansible.builtin.file:
-        path: "{{ file_share_root }}"
+        path: "{{ item.path }}"
         state: directory
-        owner: "{{ file_share_user }}"
-        group: "{{ file_share_user }}"
-        mode: "0750"
+        owner: root
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop: "{{ share_dirs }}"
+      loop_control:
+        label: "{{ item.name }}"
 
+    # Nothing confines an sftp session to a subtree without a chroot, so the homes have
+    # to stop being writable — otherwise uploads could land there, on the 8G rootfs,
+    # instead of on the quota'd data volume.
+    - name: Take the home away from each account
+      ansible.builtin.file:
+        path: "/home/{{ item.key }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0555"
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    # root-owned for the same reason: sshd reads authorized_keys as root, and an
+    # account being able to append to its own is how revocation stops working.
     - name: Create .ssh
       ansible.builtin.file:
-        path: "/home/{{ file_share_user }}/.ssh"
+        path: "/home/{{ item.key }}/.ssh"
         state: directory
-        owner: "{{ file_share_user }}"
-        group: "{{ file_share_user }}"
-        mode: "0700"
+        owner: root
+        group: root
+        mode: "0755"
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
 
-    # One expression rather than appends inside {% if %} blocks: this decides what
-    # the key may do, so it is worth being able to print it (-v shows the fact).
-    - name: Build the rrsync restriction
-      ansible.builtin.set_fact:
-        file_share_rrsync_command: >-
-          {{ ([file_share_rrsync]
-              + ([mode_flag] if mode_flag else [])
-              + (['-no-del'] if file_share_no_delete else [])
-              + [file_share_root]) | join(' ') }}
-      vars:
-        mode_flag: "{{ {'ro': '-ro', 'wo': '-wo'}.get(file_share_mode, '') }}"
-
-    # `restrict` is the catch-all — no pty, no port/agent/X11 forwarding, no user rc
-    # — and stays correct as OpenSSH adds options, where an explicit no-* list would
-    # not. command= then pins the only thing the key can do. Blank lines are ignored.
+    # `restrict` is the catch-all, and stays correct as OpenSSH adds options. No
+    # command= alongside it: it would confine key logins only, and sshd's own
+    # ForceCommand overrides it anyway, so it would read as the restriction while
+    # enforcing nothing. Dropping a key here and re-running revokes it.
     - name: Install the restricted authorized_keys
       ansible.builtin.copy:
-        dest: "/home/{{ file_share_user }}/.ssh/authorized_keys"
-        owner: "{{ file_share_user }}"
-        group: "{{ file_share_user }}"
+        dest: "/home/{{ item.key }}/.ssh/authorized_keys"
+        owner: root
+        group: root
         mode: "0600"
         content: |
-          {% for key in file_share_keys %}
-          restrict,command="{{ file_share_rrsync_command }}" {{ key }}
+          {% for key in item.value['keys'] | default([]) %}
+          restrict {{ key }}
           {% endfor %}
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
 
-    # Mirrors common.yml except for PermitRootLogin: an LXC has no cloud-init, so
-    # root over key auth is Ansible's only way back in. `no` here locks the container
-    # out of management on the second run.
+    # sshd runs one forced command per session and settles on it before it knows what
+    # the client wants, so supporting both protocols means branching here instead.
+    # rsync announces itself in the command it asks for; a graphical client asks for
+    # the sftp subsystem, and anything else gets sftp-server too — which speaks a
+    # protocol, not a shell, so an unrecognised request achieves nothing.
+    #
+    # rrsync reads the same variable to work out what was requested, and rejects any
+    # path outside the directory it is given. -l INFO logs every open, write and
+    # delete to auth.log, which is the only record of what an outside user did —
+    # rsync leaves none.
+    - name: Install the dispatch scripts
+      ansible.builtin.copy:
+        dest: "{{ share_dispatch_dir }}/share-{{ item.name }}"
+        owner: root
+        group: root
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          # Managed by ansible — infra/ansible/vps.yml. {{ item.name }}, mode {{ item.mode }}.
+          case "$SSH_ORIGINAL_COMMAND" in
+            "rsync --server"*) exec {{ share_rrsync }} {{ flags.rsync }} {{ item.path }} ;;
+            *)                 exec {{ share_sftp_server }} -d {{ item.path }} -l INFO {{ flags.sftp }} ;;
+          esac
+      vars:
+        flags: "{{ share_flags[item.mode[-2]] }}"
+      loop: "{{ share_dirs }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # PermitRootLogin differs from common.yml: an LXC has no cloud-init, so root over
+    # key auth is Ansible's only way back in.
+    #
+    # A Match block per account is the whole of the confinement, for either credential
+    # — ForceCommand replaces anything the client asked for, including a shell.
+    # Password auth is global-off and enabled only for the accounts that have a hash.
+    #
+    # An account dropped from share_users keeps its keys and its home on the box, and
+    # loses only its block here. The last block catches it: sshd applies every Match
+    # that fits and keeps the first value it was given, so a named account's own
+    # ForceCommand still wins, and anything left over gets /bin/false.
     - name: Harden sshd
       ansible.builtin.copy:
         dest: /etc/ssh/sshd_config.d/10-homelab.conf
@@ -161,12 +288,26 @@
           PermitRootLogin prohibit-password
           PasswordAuthentication no
           KbdInteractiveAuthentication no
+          {% for name, user in share_users.items() %}
 
-          Match User {{ file_share_user }}
+          Match User {{ name }}
             AllowTcpForwarding no
             AllowAgentForwarding no
             X11Forwarding no
             PermitTTY no
+            ForceCommand {{ share_dispatch_dir }}/share-{{ name }}
+          {% if user.password_hash | default('') | length > 0 %}
+            PasswordAuthentication yes
+          {% endif %}
+          {% endfor %}
+
+          Match Group shareusers
+            AllowTcpForwarding no
+            AllowAgentForwarding no
+            X11Forwarding no
+            PermitTTY no
+            ForceCommand /bin/false
+            PasswordAuthentication no
         mode: "0644"
         validate: sshd -t -f %s
       notify: Restart sshd

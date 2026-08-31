@@ -45,14 +45,16 @@ variable "data_path" {
 # it capacity.
 
 variable "cores" {
-  description = "Caps concurrent CPUs. Does not pin or reserve one. sshd and rsync need one."
+  description = "Caps concurrent CPUs. Does not pin or reserve one. sshd and one transfer need one."
   type        = number
   default     = 1
 }
 
-# rsync's memory scales with the file count in a tree, not its size. A large tree
-# mid-sync is the realistic way to reach the cap, and the symptom — an OOM kill
-# partway through a transfer — reads as a network fault. Headroom is free unused.
+# rsync's memory scales with the file count in a tree, not its size, and it is the
+# reason for this ceiling — sftp-server holds one file at a time and never approaches
+# it. A large tree mid-sync is the realistic way to reach the cap, and the symptom —
+# an OOM kill partway through a transfer — reads as a network fault. Headroom is free
+# unused.
 variable "memory" {
   description = "MB ceiling. Exceeding it OOM-kills inside the container rather than pressuring the host."
   type        = number

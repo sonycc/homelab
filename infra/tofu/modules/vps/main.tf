@@ -27,7 +27,7 @@ resource "proxmox_virtual_environment_container" "this" {
   unprivileged = true
 
   # No features block on purpose: nesting, keyctl and fuse are each a hole in the
-  # boundary this exists to provide, and sshd and rsync need none of them.
+  # boundary this exists to provide, and sshd, sftp-server and rsync need none of them.
 
   start_on_boot = true
 

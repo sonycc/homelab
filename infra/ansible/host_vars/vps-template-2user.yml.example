@@ -1,0 +1,17 @@
+share_users:
+
+  <user-1>:
+    mode: "2770"
+    path: /srv/data/shared
+    group: shared
+    password_hash: '$6$...'
+    keys:
+      - "ssh-ed25519 AAAA... user-1@their-machine"
+
+  <user-2>:
+    mode: "2770"
+    path: /srv/data/shared
+    group: shared
+    password_hash: '$6$...'
+    keys:
+      - "ssh-ed25519 AAAA... user-2@their-machine"
