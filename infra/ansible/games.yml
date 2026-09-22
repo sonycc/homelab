@@ -1,0 +1,24 @@
+# Compose stacks on game hosts.
+#
+#   ansible-playbook games.yml --tags valheim
+#
+# Its own playbook, like vps.yml: stacks.yml targets hosts tofu renders into
+# inventory.ini, and must not fail on a machine we do not control. This one comes from
+# inventory.external.ini, and is kept out of homelab because common.yml and docker.yml
+# target that group.
+
+- name: Stacks on the game hosts
+  hosts: games
+
+  # docker compose runs on the docker group, and $HOME needs no root to write, so there
+  # is no sudo password to hold.
+  become: false
+
+  roles:
+    # Raised because a first deploy blocks on SteamCMD pulling the server down before
+    # the healthcheck can pass at all.
+    - role: stack_deploy
+      stack_name: valheim
+      stack_dest: "{{ ansible_env.HOME }}/homelab/valheim"
+      stack_wait_timeout: 900
+      tags: [valheim]

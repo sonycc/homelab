@@ -1,0 +1,15 @@
+# Copy to inventory.external.ini, which is gitignored: it addresses a machine that is
+# not ours. For hosts tofu cannot render, because it did not create them.
+#
+# Not a child of homelab, on purpose. common.yml and docker.yml target that group and
+# would push unattended-upgrades, fail2ban and an sshd config onto someone else's box.
+
+[games]
+game-<NAME> ansible_host=<address-or-hostname>
+
+[games:vars]
+ansible_user=<login>
+ansible_ssh_private_key_file=~/.ssh/<key>
+
+# The login needs to be in the docker group and nothing more. games.yml runs with
+# become: false and keeps its stacks under $HOME.

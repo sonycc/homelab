@@ -3,7 +3,10 @@
 Dedicated server on [`community-valheim-tools/valheim-server`](https://github.com/community-valheim-tools/valheim-server-docker), reached over WAN through a [playit.gg](https://playit.gg) tunnel.
 
 The image is the maintained continuation of `lloesche/valheim-server-docker`, which its author handed over.
-It wraps SteamCMD, so game patches are handled inside the container and do not need a new image — WUD still watches the image tag for the layer underneath.
+It wraps SteamCMD, so game patches are handled inside the container and do not need a new image.
+
+It runs on a host this repo does not provision, deployed by `infra/ansible/games.yml` off `inventory.external.ini`.
+WUD reads vm-core's local Docker socket, so it does not watch this image tag: bumping it is manual.
 
 ## Why a tunnel
 
