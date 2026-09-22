@@ -105,8 +105,9 @@ infra/ansible/inventory.ini
 # Holds homelab_domain, kept out of the repo like DOMAIN in the .env files.
 infra/ansible/group_vars/*
 !infra/ansible/group_vars/*.example
-# Generation rules rather than values, so this one is tracked.
+# Generation rules rather than values, so these are tracked.
 !infra/ansible/group_vars/homelab.yml
+!infra/ansible/group_vars/vps.yml
 
 # Per-VPS overrides. The keys in these are public, but they carry the name and
 # email of someone who is not us, and AUDIT already enumerates this homelab's
