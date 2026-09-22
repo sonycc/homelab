@@ -40,15 +40,6 @@
       stack_wait_timeout: 900   # raised from the default 300s because omnibus reconfigure on first boot runs for minutes before the healthcheck's own 3m start_period even begins.
       tags: [gitlab]
 
-    # No .env.vm-core: nothing in this stack differs between hosts, and the old host
-    # never ran it.
-    # stack_wait_timeout is raised because a first deploy blocks on SteamCMD pulling
-    # the server down before the healthcheck can pass at all.
-    - role: stack_deploy
-      stack_name: valheim
-      stack_wait_timeout: 900
-      tags: [valheim]
-
     # Monitors are templates because they name public hostnames, and the domain is
     # deliberately not in this repo. Needs homelab_domain in group_vars.
     # monitors/ is AutoKuma's source of truth; without it Kuma comes up empty.
