@@ -1,10 +1,12 @@
 # Small VPSes handed to external users, provisioned by modules/vps in tofu.
 # Not part of common.yml: that targets the homelab group.
 #
-#   ansible-playbook vps.yml                    # every VPS
-#   ansible-playbook vps.yml -l vps_<VPS-NAME>  # one of them
+#   ansible-playbook vps.yml                # every VPS
+#   ansible-playbook vps.yml -l vps-<NAME>  # one of them
 #
-# Per-instance settings go in host_vars/<VPS-NAME>.yml, which is gitignored.
+# tofu names each host vps-<NAME> after its key in the vps.tf for_each, and puts it in
+# a group of that name with the hyphen swapped for an underscore, so -l takes either.
+# Per-instance settings go in host_vars/vps-<NAME>.yml, which is gitignored.
 
 - name: External VPSes
   hosts: vps
@@ -26,6 +28,29 @@
         that: share_users | length > 0
         fail_msg: "share_users is empty. Set it in host_vars/{{ inventory_hostname }}.yml."
 
+    # Match User takes a pattern, so a login with a wildcard in it would hand its
+    # ForceCommand to every account whose name fits. The directory, the group and the
+    # dispatch script are named after it too.
+    - name: Require a plain login name
+      ansible.builtin.assert:
+        that: item.key is match('^[a-z_][a-z0-9_-]{0,30}$')
+        fail_msg: >-
+          '{{ item.key }}' is not a usable login. Lowercase, starting with a letter or an
+          underscore, then letters, digits, hyphens and underscores.
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    # An account written with nothing under it parses as null, and every later expression
+    # fails on it with a template error that names no account.
+    - name: Require settings under each account
+      ansible.builtin.assert:
+        that: item.value is mapping
+        fail_msg: "{{ item.key }} has nothing under it. It needs a mode and at least one credential."
+      loop: "{{ share_users | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
     # Every later task works from this rather than re-deriving the defaults.
     - name: Resolve each account's directory
       ansible.builtin.set_fact:
@@ -40,7 +65,7 @@
 
     - name: Require a credential for every account
       ansible.builtin.assert:
-        that: item.value['keys'] | default([]) | length > 0
+        that: item.value.get('keys', []) | length > 0
           or item.value.password_hash | default('') | length > 0
         fail_msg: >-
           {{ item.key }} has neither keys nor password_hash.
@@ -65,11 +90,11 @@
       ansible.builtin.assert:
         that:
           - item.mode is match('^[0-7]{3,4}$')
-          - item.mode[-2:-1] in share_flags
+          - item.mode[-2] in share_flags
         fail_msg: >-
-          {{ item.name }}: mode is '{{ item.mode }}'. It must be octal, quoted, with a
-          group digit of {{ share_flags.keys() | join(', ') }} — that digit is what
-          the account gets.
+          {{ item.name }}: mode is '{{ item.mode }}'. Every account needs one, octal and
+          quoted, with a group digit of {{ share_flags.keys() | join(', ') }}. That digit
+          is what the account gets.
       loop: "{{ share_dirs }}"
       loop_control:
         label: "{{ item.name }}"
@@ -83,6 +108,21 @@
         fail_msg: >-
           {{ item.name }}: path is {{ share_root }}, which holds every account's
           directory. Leave path unset to get {{ share_root }}/{{ item.name }}.
+      loop: "{{ share_dirs }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # A path outside it is still chgrp'd and chmod'd by the task that owns the share
+    # directories, so a typo there rewrites a system directory instead of failing. It
+    # would also be on the 8G rootfs rather than the quota'd volume.
+    - name: Keep every share under the base directory
+      ansible.builtin.assert:
+        that:
+          - item.path.startswith(share_root ~ '/')
+          - "'..' not in item.path.split('/')"
+        fail_msg: >-
+          {{ item.name }}: path is {{ item.path }}, which is not under {{ share_root }}.
+          The data volume is mounted there, and nothing outside it is quota'd.
       loop: "{{ share_dirs }}"
       loop_control:
         label: "{{ item.name }}"
@@ -175,12 +215,25 @@
         name: "{{ item.key }}"
         shell: /bin/sh
         create_home: true
-        groups: "{{ ['shareusers'] + ([item.value.group] if item.value.group is defined else []) }}"
+        groups: shareusers
         append: true
         password: "{{ item.value.password_hash | default('!', true) }}"
       loop: "{{ share_users | dict2items }}"
       loop_control:
         label: "{{ item.key }}"
+
+    # Separate from the task above because an account may name another account's group,
+    # which does not exist until the user module has made that account. In one pass the
+    # run would depend on the order the accounts happen to be written in.
+    # An account's own group is already its primary one, so the default case is a no-op.
+    - name: Put each account in its directory's group
+      ansible.builtin.user:
+        name: "{{ item.name }}"
+        groups: "{{ item.group }}"
+        append: true
+      loop: "{{ share_dirs }}"
+      loop_control:
+        label: "{{ item.name }}"
 
     # The group is the account's own unless it names one, so the group digit is what
     # the account gets and the other digit decides whether the rest of the box can
@@ -234,7 +287,8 @@
         group: root
         mode: "0600"
         content: |
-          {% for key in item.value['keys'] | default([]) %}
+          # Managed by ansible — infra/ansible/vps.yml. {{ item.key }}.
+          {% for key in item.value.get('keys', []) %}
           restrict {{ key }}
           {% endfor %}
       loop: "{{ share_users | dict2items }}"
@@ -247,10 +301,20 @@
     # the sftp subsystem, and anything else gets sftp-server too — which speaks a
     # protocol, not a shell, so an unrecognised request achieves nothing.
     #
+    # An scp client speaking its own protocol, which means OpenSSH before 9 or 9 with -O,
+    # asks for "scp -t" or "scp -f" and would fall through to sftp-server. That answers in
+    # a protocol it cannot parse, so the transfer hangs or dies on garbage with nothing
+    # saying why. A message on stderr reaches the user: scp prints what the remote wrote.
+    #
     # rrsync reads the same variable to work out what was requested, and rejects any
     # path outside the directory it is given. -l INFO logs every open, write and
     # delete to auth.log, which is the only record of what an outside user did —
     # rsync leaves none.
+    #
+    # A setgid mode says the directory belongs to a group rather than to one account,
+    # so uploads have to be group-writable or the others can read them and nothing
+    # more. Set here rather than with sftp-server's -u, which would leave the rsync
+    # branch on the default 0022.
     - name: Install the dispatch scripts
       ansible.builtin.copy:
         dest: "{{ share_dispatch_dir }}/share-{{ item.name }}"
@@ -260,8 +324,15 @@
         content: |
           #!/bin/sh
           # Managed by ansible — infra/ansible/vps.yml. {{ item.name }}, mode {{ item.mode }}.
+          {% if item.mode | length == 4 and item.mode[0] in '2367' %}
+          umask 0002
+          {% endif %}
           case "$SSH_ORIGINAL_COMMAND" in
             "rsync --server"*) exec {{ share_rrsync }} {{ flags.rsync }} {{ item.path }} ;;
+            "scp "*|scp)
+              echo "scp's own protocol is not served here." >&2
+              echo "OpenSSH 9 and later speak SFTP unless given -O. Older clients: use sftp." >&2
+              exit 1 ;;
             *)                 exec {{ share_sftp_server }} -d {{ item.path }} -l INFO {{ flags.sftp }} ;;
           esac
       vars:
