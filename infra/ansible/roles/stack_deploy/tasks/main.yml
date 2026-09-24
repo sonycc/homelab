@@ -49,6 +49,7 @@
     group: "{{ ansible_user }}"
     mode: "0644"
   loop: "{{ stack_templates }}"
+  no_log: true   # remove while debugging this task, then put it back
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/stat_module.html
 # delegate_to: localhost because the file lives on the control node. Not every
@@ -69,6 +70,7 @@
     group: "{{ ansible_user }}"
     mode: "0600"
   when: stack_env.stat.exists
+  no_log: true   # remove while debugging this task, then put it back
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/command_module.html
 # --wait exits non-zero if a container never reaches healthy, so this task is the health gate.
@@ -77,6 +79,7 @@
   ansible.builtin.command:
     cmd: docker compose up -d --wait --wait-timeout {{ stack_wait_timeout }}
     chdir: "{{ stack_dest }}"
+  when: not ansible_check_mode
   register: stack_compose_up
   changed_when: >-
     'Started' in stack_compose_up.stderr

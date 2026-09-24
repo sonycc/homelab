@@ -221,6 +221,7 @@
       loop: "{{ share_users | dict2items }}"
       loop_control:
         label: "{{ item.key }}"
+      no_log: true
 
     # Separate from the task above because an account may name another account's group,
     # which does not exist until the user module has made that account. In one pass the

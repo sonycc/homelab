@@ -14,6 +14,7 @@
     owner: root
     group: root
     mode: "0750"
+  no_log: true   # remove while debugging this task, then put it back
 
 # cron_file rather than root's crontab, so the entry is one removable file.
 #
