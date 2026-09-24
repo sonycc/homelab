@@ -1,0 +1,23 @@
+# A world is a directory: _main.<gen>.db2, _main.<gen>.fwl2, _main.<gen>.ok written last
+# once the save finished, and one file per chunk. The generation ties them together, so
+# matching generations is the check, not size.
+unzip -tqq "$ARCHIVE" >/dev/null 2>&1 || fail "$ARCHIVE_NAME is not a readable zip"
+
+members="$(unzip -Z1 "$ARCHIVE")"
+
+# One complete world is enough. The archive holds every world plus Valheim's own
+# auto-backup copies, so a check across all of them compares unrelated saves.
+# Keying on the path up to the extension makes the generation match implicit.
+complete="$(printf '%s\n' "$members" | awk '
+    /_main\.[0-9]+\.db2$/  { k = $0; sub(/\.db2$/,  "", k); db[k]  = 1 }
+    /_main\.[0-9]+\.fwl2$/ { k = $0; sub(/\.fwl2$/, "", k); fwl[k] = 1 }
+    /_main\.[0-9]+\.ok$/   { k = $0; sub(/\.ok$/,   "", k); ok[k]  = 1 }
+    END { c = 0; for (k in db) if (fwl[k] && ok[k]) c++; print c }
+')"
+
+# No .ok means the server was killed mid-save, which is the one state not to restore from.
+[ "$complete" -gt 0 ] || fail "$ARCHIVE_NAME holds no world with a matching .db2, .fwl2 and .ok"
+
+chunks="$(printf '%s\n' "$members" | grep -c '\.chunk$' || true)"
+
+VERIFIED="$complete complete world(s), $chunks chunks"

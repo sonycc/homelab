@@ -1,0 +1,137 @@
+- name: Require a game name and a source
+  ansible.builtin.assert:
+    that:
+      - game_backup_name | length > 0
+      - game_backup_ssh_alias | length > 0
+      - game_backup_remote_dir | length > 0
+    fail_msg: >-
+      game_backup needs game_backup_name, game_backup_ssh_alias and
+      game_backup_remote_dir, e.g.
+      roles: [{ role: game_backup, game_backup_name: valheim, ... }]
+
+- name: Resolve {{ game_backup_ssh_alias }} from the control node's ssh_config
+  ansible.builtin.command: "ssh -G {{ game_backup_ssh_alias }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  register: game_backup_sshg
+
+# proxyjump names another alias, not an address, so the jump host needs its own pass.
+- name: Read the connection
+  ansible.builtin.set_fact:
+    game_backup_host: "{{ game_backup_sshg.stdout | regex_search('(?m)^hostname (\\S+)$', '\\1') | first }}"
+    game_backup_port: "{{ game_backup_sshg.stdout | regex_search('(?m)^port (\\S+)$', '\\1') | first }}"
+    game_backup_user: "{{ game_backup_sshg.stdout | regex_search('(?m)^user (\\S+)$', '\\1') | first }}"
+    game_backup_jump: "{{ game_backup_sshg.stdout | regex_search('(?m)^proxyjump (\\S+)$', '\\1') | default(['none'], true) | first }}"
+
+# ssh -G invents an answer for an alias it does not know: hostname becomes the alias and
+# user the caller, with no error.
+- name: Require the alias to be defined
+  ansible.builtin.assert:
+    that: game_backup_host != game_backup_ssh_alias
+    fail_msg: >-
+      ssh -G {{ game_backup_ssh_alias }} resolved to itself, so nothing on the control
+      node defines that Host. This connection lives in ~/.ssh/config, not in this repo.
+
+- name: Resolve the jump host
+  ansible.builtin.command: "ssh -G {{ game_backup_jump }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  register: game_backup_jump_sshg
+  when: game_backup_jump != 'none'
+
+- name: Read the jump connection
+  ansible.builtin.set_fact:
+    game_backup_jump_host: "{{ game_backup_jump_sshg.stdout | regex_search('(?m)^hostname (\\S+)$', '\\1') | first }}"
+    game_backup_jump_port: "{{ game_backup_jump_sshg.stdout | regex_search('(?m)^port (\\S+)$', '\\1') | first }}"
+    game_backup_jump_user: "{{ game_backup_jump_sshg.stdout | regex_search('(?m)^user (\\S+)$', '\\1') | first }}"
+  when: game_backup_jump != 'none'
+
+- name: Install rsync and unzip
+  ansible.builtin.apt:
+    name:
+      - rsync
+      - unzip
+    state: present
+
+# 0700 root: these are save games, and each MANIFEST names the host it came from.
+- name: Create {{ game_backup_root }}
+  ansible.builtin.file:
+    path: "{{ game_backup_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# ssh -G reports the control node's key paths, not this host's, so keys stay explicit.
+- name: Look for the keys
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: game_backup_key_stat
+  loop: "{{ [game_backup_key] + ([game_backup_jump_key] if game_backup_jump != 'none' else []) }}"
+
+- name: Require the keys
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: >-
+      {{ item.item }} is missing. Generate it here, 0600 root, and pin its public half in
+      the far end's authorized_keys — see stacks/{{ game_backup_name }}/README.md.
+  loop: "{{ game_backup_key_stat.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create /root/.ssh/config.d
+  ansible.builtin.file:
+    path: /root/.ssh/config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# First match wins in ssh_config, so this has to precede any Host block already there.
+- name: Include config.d from root's ssh config
+  ansible.builtin.blockinfile:
+    path: /root/.ssh/config
+    block: Include /root/.ssh/config.d/*
+    marker: "# {mark} ANSIBLE MANAGED - game_backup"
+    insertbefore: BOF
+    create: true
+    owner: root
+    group: root
+    mode: "0600"
+
+# ssh silently ignores a config it considers too permissive, so 0600 is load-bearing.
+- name: Write the {{ game_backup_ssh_alias }} connection
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: "{{ game_backup_ssh_config }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+# no_log because the rendered script carries the Kuma push token.
+- name: Install the {{ game_backup_name }} pull script
+  ansible.builtin.template:
+    src: game-backup.sh.j2
+    dest: "{{ game_backup_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+  no_log: true   # remove while debugging this task, then put it back
+
+# cron_file rather than root's crontab, so the entry is one removable file.
+# flock because cron will start a second run over a first that is still going.
+# logger because cron mails output to root and there is no MTA here, so without it a
+# failure goes nowhere. (see `journalctl -t game-backup-<name>`)
+- name: Schedule the nightly {{ game_backup_name }} pull
+  ansible.builtin.cron:
+    name: "{{ game_backup_name }} backup"
+    cron_file: "game-backup-{{ game_backup_name }}"
+    user: root
+    minute: "{{ game_backup_minute }}"
+    hour: "{{ game_backup_hour }}"
+    job: >-
+      /usr/bin/flock -n /var/lock/game-backup-{{ game_backup_name }}.lock
+      {{ game_backup_script }}
+      2>&1 | /usr/bin/logger -t game-backup-{{ game_backup_name }}

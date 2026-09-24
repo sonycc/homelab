@@ -1,0 +1,5 @@
+# No per-game check set, so this proves only that something arrived — which is how a
+# backup of the right shape holding nothing gets through (AUDIT M18).
+[ -s "$ARCHIVE" ] || fail "$ARCHIVE_NAME is empty"
+
+VERIFIED="$(stat -c %s "$ARCHIVE") bytes, structure unchecked"

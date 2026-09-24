@@ -1,0 +1,25 @@
+A world is a directory, not a file pair: _main.<gen>.db2, _main.<gen>.fwl2,
+_main.<gen>.ok and one file per chunk, all sharing <gen>. Restore it whole; mixing
+generations corrupts it. No .ok means that save never finished.
+
+  1. Copy this archive to the game host, into the directory the stack bind-mounts:
+       rsync -e ssh $ARCHIVE_NAME <alias>:homelab/valheim/backups/
+
+  2. There, stop the server. Never unpack over a running one:
+       cd ~/homelab/valheim && docker compose stop valheim
+
+  3. Unpack. Paths inside the archive start at config/, so extract from / — and mount
+     the host's backups directory, because /config/backups in the volume is the stale
+     copy the bind mount shadows:
+       docker run --rm -v valheim_valheim_config:/config \\
+         -v ~/homelab/valheim/backups:/restore:ro -w / \\
+         alpine unzip -o /restore/$ARCHIVE_NAME
+
+  4. docker compose up -d
+
+The archive holds every world the server had, so check WORLD_NAME in .env matches the
+one you meant to roll back. A name matching no directory generates a fresh map rather
+than failing.
+
+Valheim also keeps rotating copies as <world>_backup_auto-<stamp> directories under
+/config/worlds_local. Those cover a single bad save without reaching for this.

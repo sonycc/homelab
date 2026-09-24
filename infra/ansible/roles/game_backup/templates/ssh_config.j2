@@ -1,0 +1,36 @@
+# Managed by Ansible: infra/ansible/roles/game_backup. Edits here are overwritten.
+# Resolved with `ssh -G {{ game_backup_ssh_alias }}` on the control node, so it is the
+# same connection that alias gives by hand. Only the key paths are this host's.
+#
+# Runs from cron, so there is no prompt to answer: BatchMode fails instead of hanging,
+# and accept-new trusts a host key once rather than on every connection. A key that
+# later changes still fails.
+{% if game_backup_jump != 'none' %}
+
+Host {{ game_backup_ssh_alias }}-jump
+    HostName       {{ game_backup_jump_host }}
+    Port           {{ game_backup_jump_port }}
+    User           {{ game_backup_jump_user }}
+    IdentityFile   {{ game_backup_jump_key }}
+    BatchMode              yes
+    ConnectTimeout         15
+    StrictHostKeyChecking  accept-new
+    IdentitiesOnly         yes
+    PasswordAuthentication no
+{% endif %}
+
+Host {{ game_backup_ssh_alias }}
+    HostName       {{ game_backup_host }}
+    Port           {{ game_backup_port }}
+    User           {{ game_backup_user }}
+    IdentityFile   {{ game_backup_key }}
+{% if game_backup_jump != 'none' %}
+    ProxyJump      {{ game_backup_ssh_alias }}-jump
+{% endif %}
+    BatchMode              yes
+    ConnectTimeout         15
+    StrictHostKeyChecking  accept-new
+
+    # This key is pinned to a read-only rrsync (AUDIT M19); another identity would bypass that.
+    IdentitiesOnly         yes
+    PasswordAuthentication no

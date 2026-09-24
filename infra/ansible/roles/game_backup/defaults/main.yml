@@ -1,0 +1,35 @@
+# Pulls a game server's own backup artifacts onto this host and keeps them longer than
+# the server does. Everything except the two templates at the bottom is game-agnostic.
+
+game_backup_name: ""
+game_backup_root: "/var/backups/games/{{ game_backup_name }}"
+game_backup_script: "/usr/local/sbin/game-backup-{{ game_backup_name }}.sh"
+
+# Address, port, login and any jump are read from the control node's ssh_config with
+# ssh -G, so the connection is named once, in the file used interactively.
+game_backup_ssh_alias: ""
+game_backup_ssh_config: "/root/.ssh/config.d/game-{{ game_backup_name }}"
+
+game_backup_remote_dir: ""
+game_backup_glob: "*.zip"
+
+# This host's own keys, not copies of the estate key, so a compromise here is worth only
+# what the far ends pin them to: a read-only rrsync, and forwarding (AUDIT M19).
+game_backup_key: /root/.ssh/game-backup
+game_backup_jump_key: /root/.ssh/bastion
+
+# Counted in days: the server's own schedule is the intra-day layer, this is for the
+# case where its host is gone.
+game_backup_keep: 30
+
+game_backup_minute: "15"
+game_backup_hour: "4"
+
+# uptime-kuma push monitor. Empty disables.
+game_backup_push_url: ""
+
+# Jinja-included into the pull script. verify runs with ARCHIVE set to the pulled file,
+# calls fail on anything it dislikes, and sets VERIFIED for the manifest.
+# restore is appended to every MANIFEST, with shell variables expanded at run time.
+game_backup_verify_src: verify-default.sh.j2
+game_backup_restore_src: restore-default.j2

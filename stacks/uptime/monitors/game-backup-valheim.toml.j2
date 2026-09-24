@@ -1,0 +1,14 @@
+# Push rather than http: the pull script pings this only after its verification gate
+# passes, so red means "no verified world archive last night", not "the host is down".
+#
+# It is the only thing watching the chain behind it. The server's own hourly backup, the
+# bind mount, the bastion hop and the rrsync pinning all fail silently, and each one
+# ends with this ping not arriving.
+type = "push"
+name = "valheim backup"
+push_token = "{{ game_backup_push_token }}"
+
+# Nightly at 04:15, plus an hour of slack before the first retry.
+interval = 86400
+max_retries = 1
+retry_interval = 3600

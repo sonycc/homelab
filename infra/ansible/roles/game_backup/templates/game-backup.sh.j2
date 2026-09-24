@@ -1,0 +1,107 @@
+#!/bin/bash
+# Managed by Ansible: infra/ansible/roles/game_backup. Edits here are overwritten.
+#
+# {{ game_backup_name }}. Writes <root>/<stamp>/ per run, holding the archive as the
+# server wrote it and a MANIFEST naming the source, the verification and the restore.
+#
+# Pulls rather than being pushed to, so the game host holds no credential into this
+# network and cannot reach or delete what has already been copied (AUDIT M19).
+
+set -euo pipefail
+umask 077
+
+NAME_TAG="{{ game_backup_name }}"
+ROOT="{{ game_backup_root }}"
+KEEP="{{ game_backup_keep }}"
+REMOTE_DIR="{{ game_backup_remote_dir }}"
+GLOB="{{ game_backup_glob }}"
+PUSH_URL="{{ game_backup_push_url }}"
+
+# Address, port, login and key live in the ssh_config fragment this role writes.
+# SRC_DESC is for the log and the MANIFEST: a restore should name the machine.
+SRC="{{ game_backup_ssh_alias }}"
+SRC_DESC="{{ game_backup_user }}@{{ game_backup_host }}:{{ game_backup_port }}"
+
+STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
+DEST="$ROOT/$STAMP"
+# Named so the retention glob does not match it.
+STAGE="$ROOT/.in-progress-$$"
+
+SSH="ssh"
+
+log()  { echo "[game-backup-$NAME_TAG] $*"; }
+fail() { echo "[game-backup-$NAME_TAG] FAILED - $*" >&2; exit 1; }
+
+mkdir -p "$ROOT"
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
+trap 'rm -rf "$STAGE"' EXIT
+
+# ── 1. Find the newest artifact ───────────────────────────────────────────────
+# The key is pinned to rrsync, so there is no shell out there to run ls in. A listing is
+# the one thing the pinning allows, and its paths are relative to the rrsync root —
+# hence ":/" rather than $REMOTE_DIR. Sorted on rsync's own date and time columns.
+log "asking $SRC_DESC for its newest $GLOB"
+# Doubled backslashes because awk unescapes -v assignments before the regex sees them.
+GLOB_RE="^$(printf '%s' "$GLOB" | sed 's/\./\\\\./g; s/\*/.*/g')$"
+ARCHIVE_NAME="$(rsync -e "$SSH" "$SRC:/" \
+  | awk -v re="$GLOB_RE" 'NF >= 5 && $5 ~ re { print $3, $4, $5 }' \
+  | sort | tail -1 | awk '{ print $NF }')"
+[ -n "$ARCHIVE_NAME" ] \
+  || fail "no $GLOB under $REMOTE_DIR on $SRC_DESC, or it could not be reached. Check the bind mount, then 'rsync -e ssh $SRC:/' as root here."
+
+# The server backs up more often than this runs, so the newest should always be one we
+# have not seen. If it is not, its backup schedule has stopped — silently, every time.
+if find "$ROOT" -mindepth 2 -maxdepth 2 -name "$ARCHIVE_NAME" | grep -q .; then
+  fail "$ARCHIVE_NAME was already pulled, so the server has written nothing since. Check its backup schedule."
+fi
+
+# ── 2. Pull ───────────────────────────────────────────────────────────────────
+log "pulling $ARCHIVE_NAME"
+rsync -e "$SSH" --partial --timeout=300 "$SRC:/$ARCHIVE_NAME" "$STAGE/$ARCHIVE_NAME" \
+  || fail "rsync of $ARCHIVE_NAME failed"
+
+# ── 3. Verify ─────────────────────────────────────────────────────────────────
+# Structural, not size-based: a size check is exactly what lets an empty backup through.
+ARCHIVE="$STAGE/$ARCHIVE_NAME"
+{% include game_backup_verify_src %}
+
+# ── 4. Manifest ───────────────────────────────────────────────────────────────
+# The blank line before EOF is load-bearing. Jinja strips an include's trailing newline,
+# so without it the delimiter lands on the restore text's last line and the heredoc runs
+# to the end of the file, taking the rest of the script with it.
+cat > "$STAGE/MANIFEST" <<EOF
+game      $NAME_TAG
+taken     $STAMP
+source    $SRC_DESC:$REMOTE_DIR/$ARCHIVE_NAME
+archive   $ARCHIVE_NAME
+verified  $VERIFIED
+
+{% include game_backup_restore_src %}
+
+EOF
+
+# ── 5. Commit ─────────────────────────────────────────────────────────────────
+rm -rf "$DEST"
+mv "$STAGE" "$DEST"
+trap - EXIT
+log "wrote $DEST"
+
+# ── 6. Retention ──────────────────────────────────────────────────────────────
+# After a verified success only, so a run of failures does not erode the history.
+mapfile -t old < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d -name '2*' \
+  | sort -r | tail -n +$((KEEP + 1)))
+for d in "${old[@]:-}"; do
+  [ -n "$d" ] || continue
+  log "pruning $(basename "$d")"
+  rm -rf "$d"
+done
+
+# ── 7. Report ─────────────────────────────────────────────────────────────────
+date +%s > "$ROOT/.last-success"
+
+if [ -n "$PUSH_URL" ]; then
+  curl -fsS -m 10 "$PUSH_URL" >/dev/null || log "WARNING - push notification failed"
+fi
+
+log "done"
