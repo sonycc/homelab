@@ -1,9 +1,8 @@
 # Valheim dedicated server, reached over WAN through a playit.gg tunnel.
 #
-# playit shares the server's network namespace, so it reaches the game on
-# 127.0.0.1:2456 and nothing has to be published to the host. Recreating the
-# valheim container tears that namespace down and takes playit with it,
-# so bring the stack back with `docker compose up -d`, never `docker restart valheim`.
+# playit shares the server's network namespace, so it reaches the game on 127.0.0.1:2456
+# and nothing has to be published to the host. Recreating valheim tears that namespace
+# down and takes playit with it, so use `docker compose up -d`, never `docker restart`.
 
 services:
   valheim:
@@ -24,8 +23,7 @@ services:
       WORLD_NAME: ${WORLD_NAME:?WORLD_NAME not set}
       SERVER_PASS: ${SERVER_PASS:?SERVER_PASS not set}
 
-      # Behind the tunnel the server would advertise an address that is only
-      # reachable inside its own namespace. Players join by IP instead.
+      # Listed, it would advertise an address reachable only inside its own namespace.
       SERVER_PUBLIC: "false"
 
       RESTART_CRON: ${RESTART_CRON:-0 5 * * *}
@@ -39,16 +37,16 @@ services:
     ports:
       - "${VALHEIM_BIND:-127.0.0.1}:2456-2458:2456-2458/udp"
 
-    # /opt/valheim is deliberately not a volume. It holds the SteamCMD download,
-    # which is derived data Steam can always refetch. Persisting it also persists
-    # a failed download: steamcmd gets stuck reporting
-    #   Error! App '896660' state is 0x6 after update job
-    # and the updater falls back to the stale binary while logging that the server
-    # is already the latest version. Players then get "incompatible version" with
-    # nothing in the log admitting why. Keeping it in the container layer costs a
-    # ~2GB refetch on recreate and makes a redeploy the fix for any stuck update.
+    # /opt/valheim is deliberately not a volume: it holds the SteamCMD download, which
+    # Steam can always refetch. Persisting it persists a failed one — steamcmd sticks on
+    # "state is 0x6 after update job" and the updater serves the stale binary while
+    # logging that it is up to date. Costs a ~2GB refetch on recreate.
     volumes:
       - valheim_config:/config
+      # Backups otherwise land inside valheim_config, under /var/lib/docker, which only
+      # root can read. Exposing just this subtree lets the homelab pull them over SSH as
+      # an ordinary user, and keeps them reachable when the container will not start.
+      - ${VALHEIM_BACKUP_DIR:-./backups}:/config/backups
 
     networks:
       - valheim

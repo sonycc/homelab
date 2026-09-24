@@ -19,6 +19,6 @@
     # the healthcheck can pass at all.
     - role: stack_deploy
       stack_name: valheim
-      stack_dest: "{{ ansible_env.HOME }}/homelab/valheim"
+      stack_dest: "{{ ansible_facts['env']['HOME'] }}/homelab/valheim"
       stack_wait_timeout: 900
       tags: [valheim]

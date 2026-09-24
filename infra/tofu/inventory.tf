@@ -13,6 +13,16 @@ variable "ansible_ssh_private_key_file" {
   default     = "~/.ssh/homelab_infra"
 }
 
+# Which game hosts exist,
+#   tofu has no resource for a machine on someone else's estate,
+#   nor for the bastion in front of it.
+# The value is an ssh_config alias, which Ansible and game_backup resolve with ssh -G.
+variable "games" {
+  description = "Game hosts tofu does not provision, as name => ssh_config alias."
+  type        = map(string)
+  default     = {}
+}
+
 locals {
   # Group names use underscores; Ansible warns on hyphens. Host names keep theirs.
   inventory_groups = join("\n\n", [
@@ -34,6 +44,11 @@ locals {
 
   vps_children = join("\n", [
     for name, ct in local.ct_addresses : replace(name, "-", "_")
+  ])
+
+  games_groups = join("\n", [
+    for name, alias in var.games :
+    "game-${name} ansible_host=${alias}"
   ])
 }
 
@@ -59,5 +74,17 @@ resource "local_file" "ansible_inventory" {
     vps_children                 = local.vps_children
     ansible_user                 = var.ansible_user
     ansible_ssh_private_key_file = var.ansible_ssh_private_key_file
+  })
+}
+
+# Its own file so that -i names the blast radius: a run against the homelab cannot reach
+# a machine that is not ours. Written even when var.games is empty, since an empty group
+# parses and a missing file does not.
+resource "local_file" "ansible_inventory_external" {
+  filename        = "${path.module}/../ansible/inventory.external.ini"
+  file_permission = "0644"
+
+  content = templatefile("${path.module}/templates/inventory.external.ini.tftpl", {
+    games_groups = local.games_groups
   })
 }
