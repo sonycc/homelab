@@ -5,3 +5,11 @@ proxmox_token_id        = "terraform@pve!tofu"
 proxmox_token_secret    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 # proxmox_otp — DO NOT set this here, in any tfvars file, or anywhere on disk.
+
+# Hosts tofu names in inventory.external.ini but does not create.
+# The key becomes the inventory name, so this entry is reachable as game-valheim.
+# The value is an ssh_config alias on the control node, not an address: ssh -G resolves
+# the address, port, login, key and any ProxyJump from it.
+games = {
+  valheim = "valheim"
+}

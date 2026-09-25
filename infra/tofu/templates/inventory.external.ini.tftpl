@@ -1,0 +1,14 @@
+# OpenTofu uses this template file to generate infra/ansible/inventory.external.ini from infra/tofu/inventory.tf.
+# Do not edit.
+#
+# Hosts tofu names but does not create. ansible_host is an ssh_config alias on the
+# control node, not an address: ssh resolves the address, port, login, key and any
+# ProxyJump from it, so none of that can go stale here.
+# No ansible_ssh_private_key_file either — Ansible's own -o IdentityFile would override
+# the one the alias names.
+#
+# Not a child of homelab, on purpose. common.yml and docker.yml target that group and
+# would push unattended-upgrades, fail2ban and an sshd config onto someone else's box.
+
+[games]
+${games_groups}

@@ -3,10 +3,12 @@
 **Date:** 2026-06-25  
 **Branch:** feat/gitlab-runner  
 **Scope:** All stacks under `stacks/` — compose files, env examples, scripts, nginx configs, prometheus config  
-**Updated:** 2026-07-26 — added H2 for the new `pelican` stack  
 **Updated:** 2026-07-27 — fail2ban deployed (L2); added M8–M15 and L9–L16 from the fail2ban and Home Assistant reviews  
 **Updated:** 2026-07-31 — postgres backups repaired and a restore proven; added M16–M17 for what that left open  
-**Updated:** 2026-08-06 — GitLab migrated to Proxmox; added M18, found while taking the migration backup
+**Updated:** 2026-08-06 — GitLab migrated to Proxmox; added M18, found while taking the migration backup  
+**Updated:** 2026-09-22 — Valheim replaced pelican and moved off-estate; dropped H2 with the pelican stack, added M19  
+**Updated:** 2026-09-24 — Valheim reached via a bastion rather than directly; M19 revised, backup credentials scoped  
+**Updated:** 2026-09-24 — resolved findings moved out of Open Findings into their own section
 
 ---
 
@@ -28,31 +30,6 @@ Mounting the Docker daemon socket gives any CI job that runs on this runner **fu
 
 ---
 
-### H2 — Pelican: root-equivalent Docker socket, plus the first inbound ports that bypass Cloudflare
-
-**Files:** `stacks/pelican/docker-compose.yml`, router configuration
-
-Adding the pelican stack introduces two exposures at once, both structural rather than misconfigurations — the panel cannot do its job without them.
-
-**Read-write Docker socket in `wings`.** Same class as H1, but with a wider blast radius: where H1 is reachable by anyone who can run a CI job, this is reachable by anyone who can create a server in the panel. Wings mounts `/var/run/docker.sock` read-write by design — creating game server containers *is* the product. `tecnativa/docker-socket-proxy` is not a fix here the way it is for H1; wings legitimately needs container create/start/stop/exec, which is most of what the proxy exists to block.
-
-- Keep panel registration closed and the admin account small. Treat "can create a server" as equivalent to "has root on the host".
-- The `no-new-privileges` flag on the wings container is close to cosmetic — it constrains the wings process, not the containers wings asks the daemon to create.
-
-**Game ports forwarded past the tunnel.** Every service to date reaches the internet through cloudflared, which means no inbound ports and fail2ban banning at the Cloudflare edge. Game protocols cannot use that path: Cloudflare Tunnel carries HTTP/HTTPS, and most titles are UDP (Valheim, Rust, CS2, Palworld). So game allocations are forwarded at the router straight to the host, and:
-
-- The home IP is directly exposed on those ports rather than fronted by Cloudflare.
-- **No jail can protect them.** The fail2ban deployment from L2 bans via the Cloudflare API; this traffic never touches Cloudflare, so there is nothing to ban. This is the same gap M9 describes for GitLab's published ports, arrived at by a different route.
-- The exposed surface is game server software plus community mods — historically not a hardened target.
-
-**Mitigations:**
-- Forward only the specific allocations created in the panel, never a range.
-- Keep SFTP (`WINGS_SFTP_BIND`) on `127.0.0.1` unless remote file access is genuinely needed; it defaults to loopback for that reason.
-- Set per-server memory/disk caps and a node allocation limit in the panel — the compose-level `deploy.resources.limits` constrain only the wings binary, not the game servers, which are sibling containers of the host daemon.
-- If iptables-based banning for these ports is wanted, it needs the second `network_mode: host` fail2ban with `NET_ADMIN` already floated under M9.
-
----
-
 ### M7 — No network segmentation — all services on a single flat network
 
 Every service shares the `homelab` network. A compromised container has direct network access to the database and all other services.
@@ -65,43 +42,6 @@ Every service shares the `homelab` network. A compromised container has direct n
 | `app`        | nginx, gitlab, grafana                           |
 | `data`       | postgres, postgres-backup, gitlab, grafana       |
 | `monitoring` | prometheus, cadvisor, node-exporter, grafana     |
-
----
-
-### L2 — fail2ban ✓ implemented (2026-07-26)
-
-The original finding said "config files exist in `stacks/proxy/fail2ban/`". They did not — the directory was absent and nothing had been staged. Built from scratch:
-
-- `fail2ban` service in `stacks/proxy/docker-compose.yml`, 5 jails, full docs in `stacks/proxy/fail2ban/README.md`
-- Bans apply as **Cloudflare IP Access Rules**, not iptables. Behind the tunnel every packet reaches the kernel with cloudflared's address as its source, so a local firewall rule has nothing to match on; the real client IP exists only in `CF-Connecting-IP`, which `nginx.conf` already promotes via `real_ip_header`.
-- The container gets **no `NET_ADMIN`** — unusual for fail2ban, and possible only because the ban action makes HTTPS calls rather than writing firewall rules. A process parsing attacker-controlled log lines stays unprivileged.
-
-Filters were validated against real logs rather than assumed: `npm-botsearch` produced 0 false positives across 4285 live access-log lines, and the git-protocol exclusion in `npm-auth` correctly ignored 66 legitimate `401`s.
-
-**Deployed and verified 2026-07-27.** Container healthy, 4 jails active, ban path confirmed by a live round trip against reserved documentation addresses (correct IPv4/IPv6 target selection, rule creation, restore-on-restart, clean deletion).
-
-Two defects were found only by running it against live data, both of which passed every static check:
-
-- **UTC vs local time.** GitLab and Grafana log in UTC; the container runs Europe/Oslo. The filters' `datepattern` omitted the timezone, so entries parsed 2h in the past and, with `findtime=10m`, `gitlab-auth` could never have banned anyone. Also `%f` does not match Grafana's 9-digit nanosecond timestamps — `(?:\.\d+)?%z` handles both.
-- **fail2ban strips shell after a whitespace-preceded semicolon.** Inline `case ... ;; ... esac` in the ban action reached `sh` truncated, so every ban failed — while `fail2ban-client -t` still reported the config valid. Logic moved to `fail2ban/bin/cloudflare.sh`; the action file must stay free of semicolons.
-
-The lesson worth carrying: for this component, config validation and `fail2ban-regex` prove nothing about whether a ban actually happens. Only the round trip does.
-
-**Correction (2026-07-27):** this entry originally specified a token scoped to `Zone → Firewall Services → Edit`. No such permission group exists. The IP Access Rules endpoint requires [`Account Firewall Access Rules Write`](https://developers.cloudflare.com/api/resources/firewall/subresources/access_rules/methods/create/), which is **account-scoped** — the token cannot be restricted to a single zone, contrary to what was claimed here. The ban action now targets the account-level endpoint so its scope matches the permission, and it inspects the API response: Cloudflare returns HTTP 200 with `"success":false` for an expired token or a missing permission, which the original action discarded, making a no-op ban indistinguishable from a real one in the logs.
-
----
-
-### M8 — GitLab logged the reverse proxy as the client ✓ fixed (2026-07-26)
-
-**File:** `stacks/gitlab/docker-compose.yml`
-
-`gitlab_rails['trusted_proxies']` was unset, so Rails treated nginx as the originating client and recorded `"remote_ip":"172.21.0.2"` on every request — despite `CF-Connecting-IP` and `cf_ipcountry` reaching GitLab intact.
-
-This silently degraded everything keyed on client identity: per-IP rate limiting, the abuse dashboard, and audit events all attributed every request in the instance to a single internal address. It would also have made the new `gitlab-auth` jail actively dangerous — five failed logins from anywhere would have banned nginx at the Cloudflare edge, taking every hostname on the zone offline at once.
-
-**Fix applied:** `gitlab_rails['trusted_proxies'] = ['172.21.0.0/16']`.
-
-Same class of bug to watch for elsewhere: Grafana has no equivalent setting, which is why the `grafana-auth` jail ships disabled pending verification.
 
 ---
 
@@ -121,21 +61,6 @@ Unlike NPM's admin UI (`127.0.0.1:81`) and Home Assistant (`127.0.0.1:8123`), th
 **Fix options:**
 - Rebind 8080 and 5050 to `127.0.0.1` — both are already reachable through NPM, so nothing should depend on the host binding.
 - For SSH, either accept the exposure, move it behind the tunnel / a VPN overlay (see P1), or run a second fail2ban with `network_mode: host` and `NET_ADMIN` for iptables bans — noting that this reintroduces the privilege the main deployment deliberately avoids.
-
----
-
-### L3 — `uptime` stack is empty
-
-`stacks/uptime/docker-compose.yml` exists but is blank. Consider uptime-kuma on a separate host so it can alert when the homelab itself is down.
-
----
-
-
-### L8 — Image freshness tracking ✓ resolved by WUD
-
-The Diun recommendation is superseded: `stacks/wud/` deploys **What's Up Docker**, which watches the local socket on a cron and batches update notifications to Discord. It also filters HA's floating tags (`wud.tag.include` on the Home Assistant service) so only real version bumps are reported.
-
-Still open from the original intent: images are pinned but nothing *acts* on a report, and the dashboard item in `TODO.md` (show current vs available version for every image) is unbuilt.
 
 ---
 
@@ -280,6 +205,35 @@ Same family as M14 and M17 — a correct-looking success from a process that did
 
 ---
 
+### M19 — The Valheim world lives on hardware outside this estate
+
+**Files:** `stacks/valheim/`, `infra/ansible/games.yml`, `infra/ansible/roles/game_backup/`, `infra/ansible/inventory.external.ini`
+
+The server moved off vm-core onto a machine this repo does not provision and nobody here administers. Three things sit on it now:
+
+- **The world.** The world directory — `_main.<gen>.db2`, its `.fwl2` and every chunk — plus every hourly archive the image writes, in a Docker volume on someone else's disk.
+- **A live playit.gg agent secret.** That secret *is* the tunnel, not merely a credential for it: whoever holds it can stand up an agent claiming the same public endpoint.
+- **A Docker daemon** running a public image, on a host whose patch level, other workloads and physical access are all unknown.
+
+It is also no longer reached directly. The game host sits on a private address behind a bastion that is likewise not ours, so the path now crosses two machines outside this estate, and vm-core holds a key to the first of them.
+
+tofu cannot render that host into `inventory.ini`, because it did not create it, so it comes from a separate `inventory.external.ini` and is deliberately kept out of the `homelab` group. `common.yml` and `docker.yml` therefore never target it. That is correct — you should not push an sshd config onto a box you do not own — and it equally means none of this estate's hardening applies there.
+
+**What keeps the exposure one-directional:**
+- `games.yml` runs `become: false` with the stack under `$HOME`, so the deploy needs no root on that host and no sudo credential is held for it.
+- vm-core's two keys are scoped, not copies of the estate key. The game-host key is pinned `restrict,command="rrsync -ro …"`, so it can read that one directory and run nothing; the bastion key is pinned `restrict,permitopen="…:22"`, so it forwards to the game host and gives no shell. A compromise of vm-core is worth the pull and nothing more.
+- `game_backup` **pulls**. The game host is never given a key into this network and cannot reach, overwrite or delete what has already been copied. A push, including into a `mode: "0730"` drop-box on one of the VPSes, would not be equivalent: write permission on a directory permits unlink, and `rrsync -no-del` blocks `--delete` but not an SFTP remove, so no share-account mode available here is append-only.
+
+**What remains open:**
+- **The pull puts `homelab_infra` on vm-core.** That key opens root on every VPS container and the admin account on every VM, and until now it lived only on the control node. A compromise of vm-core previously did not reach the VPSes; with the key at `/root/.ssh/homelab_infra` it does. The game host's `authorized_keys` entry should be pinned — `restrict,command="rrsync -ro ..."` — but that only bounds what the key does *there*, not what it opens across the estate. A key issued for this one job would close it properly.
+- The playit secret and `SERVER_PASS` are in a `.env` on that host, readable by anyone with root on it. `SERVER_PASS` is the only access control on the game itself. Rotating the playit secret means a new agent, and a new public address unless the account has a reserved one.
+- A compromise of that host is not visible from here. The only signal is the nightly pull failing, which reports *unreachable*, not *owned*.
+- The homelab copy is daily. The hourly archives are the intra-day layer and they die with the host, so up to a day of progress is lost in the case this entry is about.
+
+**Fix:** none available while the host belongs to someone else. Recorded so the trade is deliberate rather than forgotten. If the server ever comes back in-estate, this entry and `inventory.external.ini` are removed together.
+
+---
+
 ### L9 — Home Assistant recorder records everything
 
 **File:** `stacks/homeassistant/config/configuration.yaml`
@@ -352,11 +306,11 @@ Recorded so that a future deprecation notice is recognised as affecting this dep
 - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
 
-Read-only, so this is materially weaker than H1 and H2 — no container creation, no `exec`. But read access to the daemon still exposes every container's full configuration, including the **environment variables of every service on the host**: database passwords, the Grafana admin password, the GitLab runner token, the Cloudflare tokens.
+Read-only, so this is materially weaker than H1 — no container creation, no `exec`. But read access to the daemon still exposes every container's full configuration, including the **environment variables of every service on the host**: database passwords, the Grafana admin password, the GitLab runner token, the Cloudflare tokens.
 
 WUD is publicly exposed at `wud.<domain>`, gated by GitLab OIDC. A pre-auth vulnerability in WUD would read every secret in the homelab.
 
-**Fix:** `tecnativa/docker-socket-proxy` genuinely fits here, unlike H2 — WUD needs only `CONTAINERS` and `IMAGES` read endpoints, which is exactly what the proxy is designed to permit while blocking everything else.
+**Fix:** `tecnativa/docker-socket-proxy` genuinely fits here, unlike H1 — WUD needs only `CONTAINERS` and `IMAGES` read endpoints, which is exactly what the proxy is designed to permit while blocking everything else.
 
 ---
 
@@ -370,22 +324,54 @@ WUD is publicly exposed at `wud.<domain>`, gated by GitLab OIDC. A pre-auth vuln
 
 ---
 
-## Planned Improvements
+## Resolved
+
+Kept for the reasoning, not the history. Anything still outstanding from one of these is an open finding above.
+
+### L2 — fail2ban ✓ deployed and verified 2026-07-27
+
+5 jails in `stacks/proxy/docker-compose.yml`, documented in `stacks/proxy/fail2ban/README.md`.
+
+Bans apply as **Cloudflare IP Access Rules**, not iptables: behind the tunnel every packet reaches the kernel with cloudflared's address as its source, and the real client IP exists only in `CF-Connecting-IP`. That is also why the container needs **no `NET_ADMIN`** — a process parsing attacker-controlled log lines stays unprivileged.
+
+The permission is account-scoped (`Account Firewall Access Rules Write`); it cannot be narrowed to one zone, which is what L12 is about.
+
+Two defects survived every static check and were found only by a live round trip:
+
+- **Timezone.** GitLab and Grafana log in UTC, the container runs Europe/Oslo. A `datepattern` without a timezone parsed entries 2h in the past, so `gitlab-auth` could never have banned anyone inside its `findtime`.
+- **fail2ban truncates shell at a whitespace-preceded semicolon.** An inline `case … ;; … esac` reached `sh` cut short and every ban silently failed, while `fail2ban-client -t` still called the config valid. Logic lives in `fail2ban/bin/cloudflare.sh`; the action file must stay free of semicolons.
+
+The lesson: for this component, config validation and `fail2ban-regex` prove nothing about whether a ban happens. Only the round trip does. The action now also inspects the response body, since Cloudflare returns HTTP 200 with `"success":false` for an expired token.
+
+---
+
+### M8 — GitLab logged the reverse proxy as the client ✓ fixed 2026-07-26
+
+`gitlab_rails['trusted_proxies']` was unset, so every request recorded nginx's address. That degraded per-IP rate limiting, the abuse dashboard and audit events, and would have made `gitlab-auth` dangerous — five failed logins from anywhere would have banned nginx at the edge, taking the whole zone offline.
+
+Fixed with `gitlab_rails['trusted_proxies'] = ['172.21.0.0/16']`. Grafana has no equivalent setting, which is why L11 ships disabled.
+
+---
+
+### L3 — `uptime` stack ✓ built
+
+Kuma plus AutoKuma, with the monitors in `stacks/uptime/monitors/` as the source of truth. The original suggestion to host it off-estate is unaddressed: it still cannot report on an outage that takes vm-core with it.
+
+---
+
+### L8 — Image freshness ✓ resolved by WUD
+
+`stacks/wud/` replaces the original Diun recommendation. Still open from the intent: images are pinned but nothing *acts* on a report, and the dashboard item in `TODO.md` is unbuilt. WUD also watches only vm-core's local socket, so the Valheim image tag (M19) is unwatched.
+
+---
 
 ### P2 — GitLab container registry ✓ configured
 
-The GitLab built-in container registry is now enabled. Changes made:
-
-- `stacks/gitlab/docker-compose.yml` — added `registry_external_url`, `registry_nginx['listen_port'] = 5050`, `registry_nginx['listen_https'] = false` to `GITLAB_OMNIBUS_CONFIG`; added port `${GITLAB_REGISTRY_PORT:-5050}:5050`
-- `stacks/gitlab/.env.example` — added `GITLAB_REGISTRY_PORT=5050`
-
-**Remaining manual steps (UI-only, cannot be automated):**
-1. **NPM:** Add proxy host `registry.<domain> → http://gitlab:5050` in the Nginx Proxy Manager UI (http://localhost:81)
-2. **Cloudflare:** Add public hostname `registry.<domain> → http://nginx:80` in the Zero Trust dashboard
-
-Both steps are documented as comments in `stacks/proxy/docker-compose.yml`.
+Enabled in `GITLAB_OMNIBUS_CONFIG` with `registry_external_url` on port 5050. The NPM proxy host and the Cloudflare public hostname are UI-only and already applied; both are documented as comments in `stacks/proxy/docker-compose.yml`.
 
 ---
+
+## Planned Improvements
 
 ### P1 — Enable SSH-based git push/pull for GitLab
 

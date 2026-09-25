@@ -1,0 +1,102 @@
+# Valheim dedicated server, reached over WAN through a playit.gg tunnel.
+#
+# playit shares the server's network namespace, so it reaches the game on 127.0.0.1:2456
+# and nothing has to be published to the host. Recreating valheim tears that namespace
+# down and takes playit with it, so use `docker compose up -d`, never `docker restart`.
+
+services:
+  valheim:
+    image: ghcr.io/community-valheim-tools/valheim-server:1.2.0
+    container_name: valheim
+    restart: unless-stopped
+
+    # The server saves the world on shutdown. Compose's 10s default kills it mid-save.
+    stop_grace_period: 2m
+
+    cap_add:
+      - SYS_NICE
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+
+      SERVER_NAME: ${SERVER_NAME:?SERVER_NAME not set}
+      WORLD_NAME: ${WORLD_NAME:?WORLD_NAME not set}
+      SERVER_PASS: ${SERVER_PASS:?SERVER_PASS not set}
+
+      # Listed, it would advertise an address reachable only inside its own namespace.
+      SERVER_PUBLIC: "false"
+
+      RESTART_CRON: ${RESTART_CRON:-0 5 * * *}
+      RESTART_IF_IDLE: ${RESTART_IF_IDLE:-true}
+
+      BACKUPS_MAX_AGE: ${BACKUPS_MAX_AGE:-14}
+      BACKUPS_MAX_COUNT: ${BACKUPS_MAX_COUNT:-48}
+
+    # Loopback, so the tunnel is the only way in. Set VALHEIM_BIND to the host's
+    # LAN address to let players on the network connect direct.
+    ports:
+      - "${VALHEIM_BIND:-127.0.0.1}:2456-2458:2456-2458/udp"
+
+    # /opt/valheim is deliberately not a volume: it holds the SteamCMD download, which
+    # Steam can always refetch. Persisting it persists a failed one — steamcmd sticks on
+    # "state is 0x6 after update job" and the updater serves the stale binary while
+    # logging that it is up to date. Costs a ~2GB refetch on recreate.
+    volumes:
+      - valheim_config:/config
+      # Backups otherwise land inside valheim_config, under /var/lib/docker, which only
+      # root can read. Exposing just this subtree lets the homelab pull them over SSH as
+      # an ordinary user, and keeps them reachable when the container will not start.
+      - ${VALHEIM_BACKUP_DIR:-./backups}:/config/backups
+
+    networks:
+      - valheim
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: ${VALHEIM_MEM_LIMIT:-4g}
+          cpus: ${VALHEIM_CPUS:-2.0}
+        reservations:
+          memory: 1g
+
+    # The image ships none, and the stack_deploy role gates on `up --wait`.
+    healthcheck:
+      test: ["CMD-SHELL", "supervisorctl status valheim-server | grep -q RUNNING"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+  playit:
+    image: ghcr.io/playit-cloud/playit-agent:1.0.10
+    container_name: valheim-playit
+    restart: unless-stopped
+
+    network_mode: "service:valheim"
+
+    depends_on:
+      valheim:
+        condition: service_healthy
+
+    environment:
+      SECRET_KEY: ${PLAYIT_SECRET_KEY:?PLAYIT_SECRET_KEY not set}
+
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+        reservations:
+          memory: 32m
+
+volumes:
+  valheim_config:
+
+networks:
+  valheim:

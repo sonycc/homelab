@@ -1,0 +1,13 @@
+share_users:
+
+  <user-1>:
+    mode: "0770"
+    password_hash: '$6$...'
+    keys:
+      - "ssh-ed25519 AAAA... user-1@their-machine"
+
+  <user-2>:
+    mode: "0750"
+    password_hash: '$6$...'
+    keys:
+      - "ssh-ed25519 AAAA... user-2@their-machine"

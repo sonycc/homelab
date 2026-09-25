@@ -10,3 +10,8 @@ gitlab_backup_push_token: >-
   {{ lookup('ansible.builtin.password',
             playbook_dir + '/.secrets/gitlab_backup_push_token',
             chars='hexdigits', length=32) }}
+
+game_backup_push_token: >-
+  {{ lookup('ansible.builtin.password',
+            playbook_dir + '/.secrets/game_backup_push_token',
+            chars='hexdigits', length=32) }}
