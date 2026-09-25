@@ -1,98 +1,126 @@
 # Valheim
 
 Dedicated server on [`community-valheim-tools/valheim-server`](https://github.com/community-valheim-tools/valheim-server-docker), reached over WAN through a [playit.gg](https://playit.gg) tunnel.
-
-The image is the maintained continuation of `lloesche/valheim-server-docker`, which its author handed over.
-It wraps SteamCMD, so game patches are handled inside the container and do not need a new image.
+The image wraps SteamCMD, so game patches are handled inside the container and do not need a new image.
 
 It runs on a host this repo does not provision, deployed by `infra/ansible/games.yml` off `inventory.external.ini`.
 WUD reads vm-core's local Docker socket, so it does not watch this image tag: bumping it is manual.
 
 ## Why a tunnel
 
-Every other service here reaches the internet through cloudflared, which means no inbound ports and fail2ban banning at the Cloudflare edge.
-Valheim cannot use that path: Cloudflare Tunnel carries HTTP, and Valheim is UDP.
-
-The alternative is a router port forward straight to the host, which exposes the WAN address on those ports with no jail able to see the traffic.
-playit moves the public endpoint to its edge instead, and the agent dials out — so the router stays closed.
+Every other service here reaches the internet through cloudflared, which carries HTTP — and Valheim is UDP.
+The alternative is a router port forward straight to the host, exposing the WAN address with no jail able to see the traffic.
+playit moves the public endpoint to its edge and the agent dials out, so the router stays closed.
 
 ## Setup
 
 | | |
 |---|---|
-| 1 | Generate an agent secret at [playit.gg/account/setup/wizard/new-account/docker/docker-name](https://playit.gg/account/setup/wizard/new-account/docker/docker-name) |
+| 1 | Generate an agent secret at [playit.gg](https://playit.gg/account/setup/wizard/new-account/docker/docker-name) |
 | 2 | `PLAYIT_SECRET_KEY` and `SERVER_PASS` into `.env` |
 | 3 | Deploy — first boot spends several minutes on the SteamCMD download before the healthcheck passes |
-| 4 | In the playit dashboard, add a **UDP** tunnel to local `127.0.0.1:2456` and note the public address it returns |
+| 4 | In the playit dashboard, add a **UDP** tunnel to local `127.0.0.1:2456` |
 
 The agent takes its tunnel definitions from the playit account, not from a config file, so step 4 needs no redeploy.
 
 ## Joining
 
 The server is **not** in the browser list — `SERVER_PUBLIC=false`, because behind the tunnel it would advertise an address only reachable inside its own network namespace.
+Players use **Join IP** with the public address from the playit dashboard, port included.
 
-Players use **Join IP** with the public address from the playit dashboard, including the port:
-
-```
-foo-bar.gl.joinmc.link:41234
-```
-
-playit assigns that port at random unless the account has a reserved one, and it can change if the tunnel is recreated.
+That port is assigned at random unless the account has a reserved one, and changes if the tunnel is recreated.
 Worth pinning if people are saving it.
 
-If a direct join fails at the handshake, add a second UDP tunnel for `127.0.0.1:2457` — some clients probe the query port before connecting.
-
-LAN players can skip the tunnel entirely: set `VALHEIM_BIND` to the host's LAN address and connect to `<host>:2456`.
+LAN players can skip the tunnel: set `VALHEIM_BIND` to the host's LAN address and connect to `<host>:2456`.
 
 ## Backups
 
-The image's own, running under the same supervisord that starts the server, writing to `/config/backups` beside the worlds.
+Two layers, for two different failures.
 
-| | |
-|---|---|
-| Schedule | hourly, whether or not anyone is connected |
-| Retention | `BACKUPS_MAX_AGE` days or `BACKUPS_MAX_COUNT` archives, whichever trips first |
-| Contents | the `.db` and `.fwl` pair zipped together |
+| | On the game host | On the homelab |
+|---|---|---|
+| Covers | a bad save, a wiped world | the host being gone |
+| Taken by | the image's own backup loop | `infra/ansible/roles/game_backup`, pulled nightly |
+| Frequency | hourly, whether or not anyone is connected | daily, the newest archive |
+| Kept | `BACKUPS_MAX_AGE` / `BACKUPS_MAX_COUNT` | `game_backup_keep` days |
 
-Both files must be restored from the **same** archive.
-A `.db` from one timestamp with a `.fwl` from another corrupts the world, which is the reason they are archived as a pair rather than swept individually.
+The homelab pulls rather than being pushed to, so the game host holds no credential into this network and cannot reach or delete the copies (AUDIT M19).
+Its key is pinned to a read-only `rrsync` of the backups directory, which is why the pull lists files with rsync rather than `ls`.
+Each archive is verified to hold at least one world whose `.db2`, `.fwl2` and `.ok` share a generation, and a `MANIFEST` is written beside it with the restore procedure.
 
-Valheim also keeps `World.db.old` — the last save before the current one — inside `/config/worlds_local`.
-That covers a single bad save without touching the archives.
+The pull needs `VALHEIM_BACKUP_DIR` bind-mounted: archives inside the named volume sit under `/var/lib/docker` and are unreadable without root.
 
-To restore:
+vm-core generates its own keys — not copies of the estate key — and each is pinned in the far end's `authorized_keys`, so a compromise of vm-core is worth the pull and nothing else:
 
-```bash
-docker compose stop valheim
-docker run --rm -v valheim_valheim_config:/config -w /config/worlds_local alpine \
-  unzip -o /config/backups/<archive>.zip
-docker compose start valheim
+```
+# game host, for the stack's own account
+restrict,command="rrsync -ro /home/<user>/homelab/valheim/backups" ssh-ed25519 AAAA...
+
+# bastion, forwarding only
+restrict,permitopen="<game-host>:<port>" ssh-ed25519 AAAA...
 ```
 
-Never unpack over a running server.
+`restrict` disables everything; `command=` allows only a read-only rsync of that one directory, and `permitopen=` only a forward to that one host and port. Neither grants a shell. `game_backup` refuses to deploy if either private key is missing.
+
+The values come from `ssh -G <alias>` on the control node, which is where the connection is defined — not from this file.
+
+### Restoring
+
+Pick the cheapest source that covers the damage.
+
+| Source | Where | Covers |
+|---|---|---|
+| `<world>_backup_auto-<stamp>/` | beside the live world in the volume | one bad save, minutes old |
+| `worlds-<stamp>.zip` | `/config/backups` on the game host | `BACKUPS_MAX_AGE` days, hourly |
+| `<stamp>/` with its `MANIFEST` | `/var/backups/games/valheim` on vm-core | `game_backup_keep` days; the only one left if the host is gone |
+
+A world is a directory — `_main.<gen>.db2`, `_main.<gen>.fwl2`, `_main.<gen>.ok` and one file per chunk, all sharing `<gen>`.
+Restore it whole; mixing generations corrupts it. No `.ok` means that save never finished — take an older one.
+
+**1. Stop the server.** Never unpack over a running one.
+
+```bash
+ssh game-server "cd ~/homelab/valheim && docker compose stop valheim"
+```
+
+**2. List what is there.**
+
+```bash
+ssh game-server "docker exec valheim ls /config/backups"
+```
+
+**3. Unpack.** Paths inside the archive start at `config/`, so extract from `/`.
+The archives live on the host, not in the volume, so mount that directory too — with only the volume mounted, `/config/backups` is the stale copy the bind mount shadows.
+
+```bash
+ssh game-server "docker run --rm -v valheim_valheim_config:/config -v ~/homelab/valheim/backups:/restore:ro -w / alpine unzip -o /restore/<archive>.zip"
+```
+
+**4. Start, and watch it load.**
+
+```bash
+ssh game-server "cd ~/homelab/valheim && docker compose up -d && docker logs -f valheim"
+```
+
+`Server config is … world: <name>` with no `Generating locations` means it came back.
+A fresh map means `WORLD_NAME` matches no directory under `worlds_local`.
+
+Restoring from vm-core instead: the `MANIFEST` beside each archive names the host it came from and carries this same procedure.
 
 ## Operational notes
 
-**`PUID`/`PGID` must stay 0.**
-The update, backup and restart schedules are crontab entries that `kill -HUP` the updater and backup loops, installed by `valheim-bootstrap` with busybox `crontab`.
-That refuses to run as non-root — `crontab: must be suid to work properly` — then exits 0.
-The result is a container that reports healthy while never updating, never backing up and never restarting.
-`docker exec valheim crontab -l` should list three entries; an empty list means this regressed.
+| Symptom | Cause | Check |
+|---|---|---|
+| Healthy, but never updates, backs up or restarts | `PUID`/`PGID` is not 0, so busybox `crontab` refused the schedules and `valheim-bootstrap` exited 0 regardless | `docker exec valheim crontab -l` — three entries, or this regressed |
+| Players get `incompatible version` | SteamCMD stuck on `state is 0x6`, serving the stale binary while logging that it is current | `docker logs valheim \| grep "Valheim version"` against the client's |
+| Tunnel dead, server fine | `docker restart valheim` left playit in a namespace that no longer exists | `docker logs valheim-playit` — `tunnel_count=1` expected |
+| World damaged after a crash | An OOM kill landed mid-save, which `stop_grace_period` cannot help with | Keep `VALHEIM_MEM_LIMIT` at 4g for an explored map |
+| Fresh map after a restore or an `.env` edit | `WORLD_NAME` matches no directory under `worlds_local`, which generates rather than fails | `docker exec valheim ls /config/worlds_local` |
+| Backup monitor green, nobody can join | Nothing watches the server itself | By hand — `STATUS_HTTP` serves `/status.json` only for browser-listed servers, which this is not |
 
-**`docker restart valheim` breaks the tunnel.**
-The playit container uses `network_mode: service:valheim` and lives in the server's network namespace.
-Restarting the server container alone leaves the agent attached to a namespace that no longer exists.
-Use `docker compose up -d` or `docker compose restart`, which recreate both.
-
-**Memory is the real constraint.**
-4g is right for an explored map; 2g carries a fresh world with a few players.
-An OOM kill lands mid-save, which is exactly the corruption case `stop_grace_period: 2m` exists to prevent — so trimming `VALHEIM_MEM_LIMIT` to fit a crowded host trades a working server for a damaged world.
+A stuck update and a stuck download are the same fix: recreate the container.
+`/opt/valheim` is not a volume, so `docker compose up -d --force-recreate` refetches the server clean, at ~2GB.
 
 **Crossplay is a second WAN path, not a setting.**
-`CROSSPLAY=true` routes players through Valheim's PlayFab relay, which does its own NAT traversal and needs neither the tunnel nor a port forward — players join by a code instead of an address.
-It is the simpler route if it works for your group.
-Running both is redundant rather than harmful, but then two things can break a join and only one of them is visible from here.
-
-**No Uptime Kuma monitor.**
-`STATUS_HTTP` serves `/status.json` only for servers listed in the browser, which this one is not.
-A push monitor driven from a container healthcheck is the way in, if it is wanted later.
+`CROSSPLAY=true` routes players through Valheim's PlayFab relay, which needs neither the tunnel nor a port forward.
+Running both is redundant rather than harmful, but then two things can break a join and only one is visible from here.

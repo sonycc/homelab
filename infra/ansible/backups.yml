@@ -17,3 +17,16 @@
     - role: gitlab_backup
       gitlab_backup_push_url: "http://127.0.0.1:3001/api/push/{{ gitlab_backup_push_token }}"
       tags: [gitlab-backup]
+
+    # Addressed off the games group, so inventory.external.ini stays the only place the
+    # host is named. Skipped rather than failed when that group is empty: the external
+    # inventory is gitignored, and a checkout without it should still run the rest.
+    - role: game_backup
+      game_backup_name: valheim
+      game_backup_ssh_alias: "{{ hostvars[groups['games'][0]].ansible_host }}"
+      game_backup_remote_dir: "~/homelab/valheim/backups"
+      game_backup_verify_src: verify-valheim.sh.j2
+      game_backup_restore_src: restore-valheim.j2
+      game_backup_push_url: "http://127.0.0.1:3001/api/push/{{ game_backup_push_token }}"
+      when: groups['games'] | default([]) | length > 0
+      tags: [valheim-backup]
