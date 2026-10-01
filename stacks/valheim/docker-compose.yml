@@ -32,6 +32,15 @@ services:
       BACKUPS_MAX_AGE: ${BACKUPS_MAX_AGE:-14}
       BACKUPS_MAX_COUNT: ${BACKUPS_MAX_COUNT:-48}
 
+      # The image installs BepInEx but not mods. install-mods fetches those.
+      BEPINEX: "true"
+      VALHEIM_MODS: ${VALHEIM_MODS:-}
+      POST_BOOTSTRAP_HOOK: /usr/local/bin/install-mods
+      # The image syncs /config/bepinex/plugins only into a plugins directory that exists,
+      # and BepInExPack 5.4.2351 ships without one. plugins_path is the image's own variable,
+      # in scope where it evaluates this hook.
+      PRE_BEPINEX_CONFIG_HOOK: mkdir -p "$$plugins_path"
+
     # Loopback, so the tunnel is the only way in. Set VALHEIM_BIND to the host's
     # LAN address to let players on the network connect direct.
     ports:
@@ -47,6 +56,7 @@ services:
       # root can read. Exposing just this subtree lets the homelab pull them over SSH as
       # an ordinary user, and keeps them reachable when the container will not start.
       - ${VALHEIM_BACKUP_DIR:-./backups}:/config/backups
+      - ./install-mods.sh:/usr/local/bin/install-mods:ro
 
     networks:
       - valheim
