@@ -443,6 +443,26 @@ The compose file already maps `${GITLAB_SSH_PORT}:22` and sets `gitlab_rails['gi
 
 ---
 
+### P3 — Decide whether the wiki or rollkeeper owns the game data
+
+The same discovery as M20, as a design question rather than a hygiene one.
+
+`dndbot` owns `rollkeeper_core` and `rollkeeper_dnd5e2024` — a ruleset-scoped schema for the same homebrew game the planned MediaWiki stack is about.
+
+This matters because **Cargo is the entire reason MediaWiki was chosen** over Wiki.js and Docusaurus. Wiki.js has tags but no field values; Docusaurus has real queries but needs git from every contributor. Cargo won because the template *is* the data source, so a generated index cannot drift from the pages.
+
+If rollkeeper is already the source of truth for spells, monsters and items, then Cargo is a second one — and the drift Cargo exists to prevent comes straight back, between the wiki and the bot instead of between pages and an index. One of them would be authoritative and the other would quietly rot.
+
+Three ways it can go, and each changes what gets built:
+
+- **Rollkeeper owns the data, the wiki owns prose.** Cargo and Page Forms are unnecessary, which also removes the custom image build, the branch-pinned extensions and the `update.php` discipline. Wiki.js or Docusaurus become viable again on much simpler terms.
+- **The wiki owns the data, the bot reads it.** Cargo stays; the bot queries its tables or the wiki API instead of holding its own copy.
+- **Genuinely separate concerns** — e.g. rollkeeper holds published 5e rules and the wiki holds homebrew only. Then both stand, and the boundary is worth writing down before it blurs.
+
+**Decide before the Cargo templates exist.** Retrofitting means rewriting every template and every page that uses one, and the whole point of the Cargo layer is that pages and indexes share one definition — so there is no cheap migration later.
+
+---
+
 ## Gitignore Notes
 
 - `stacks/proxy/data/keys.json` — RSA private key (NPM JWT signing key). Correctly gitignored via `data/`. Never manually stage it.
