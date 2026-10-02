@@ -7,6 +7,11 @@
     group: root
     mode: "0700"
 
+- name: Install rsync
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+
 - name: Install the backup script
   ansible.builtin.template:
     src: gitlab-backup.sh.j2

@@ -7,6 +7,11 @@
 #   <root>/<stamp>/database.dump      pg_dump -Fc
 #   <root>/<stamp>/secrets/           gitlab-secrets.json + gitlab.rb
 #   <root>/<stamp>/MANIFEST           sizes, versions, restore procedure
+#
+# LFS objects sit outside the sets, shared by all of them:
+#
+#   <root>/lfs/nightly/               synced every run
+#   <root>/lfs/weekly/                hard-linked from nightly every 7 days
 
 set -euo pipefail
 
@@ -22,6 +27,11 @@ PG="{{ gitlab_backup_postgres_container }}"
 DB="{{ gitlab_backup_db }}"
 OFFBOX="{{ gitlab_backup_offbox }}"
 PUSH_URL="{{ gitlab_backup_push_url }}"
+
+LFS="$ROOT/lfs"
+LFS_SRC="$(docker inspect "$GITLAB" --format \
+  '{% raw %}{{ range .Mounts }}{{ if eq .Destination "/var/opt/gitlab" }}{{ .Source }}{{ end }}{{ end }}{% endraw %}'
+)/gitlab-rails/shared/lfs-objects"
 
 STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 DEST="$ROOT/$STAMP"
@@ -59,13 +69,35 @@ docker exec -e PGDATABASE="$DB" "$PG" sh -c \
   'export PGPASSWORD="$POSTGRES_PASSWORD"; pg_dump -U "$POSTGRES_USER" -d "$PGDATABASE" -Fc' \
   > "$STAGE/database.dump" || fail "pg_dump failed"
 
-# ── 3. Secrets ────────────────────────────────────────────────────────────────
+# ── 3. LFS ────────────────────────────────────────────────────────────────────
+# After the dump, so every object the dump references is already on disk.
+# Objects are immutable, so the sync only moves what is new
+# and weekly shares every unchanged file with nightly.
+[ -d "$LFS_SRC" ] || fail "no LFS directory at $LFS_SRC"
+mkdir -p "$LFS/nightly"
+
+# Counted before the sync, so an upload landing mid-run cannot fail the check below.
+src_files="$(find "$LFS_SRC" -type f | wc -l)"
+log "syncing LFS objects"
+rsync -a --delete "$LFS_SRC/" "$LFS/nightly/" || fail "LFS sync failed"
+
+if [ -z "$(find "$LFS/weekly.taken" -mtime -6 2>/dev/null)" ]; then
+  log "taking weekly LFS snapshot"
+  rm -rf "$LFS/.weekly-new" "$LFS/.weekly-old"
+  cp -al "$LFS/nightly" "$LFS/.weekly-new"
+  [ -d "$LFS/weekly" ] && mv "$LFS/weekly" "$LFS/.weekly-old"
+  mv "$LFS/.weekly-new" "$LFS/weekly"
+  rm -rf "$LFS/.weekly-old"
+  touch "$LFS/weekly.taken"
+fi
+
+# ── 4. Secrets ────────────────────────────────────────────────────────────────
 # Not in the tarball, and required to decrypt what is.
 for f in gitlab-secrets.json gitlab.rb; do
   docker cp "$GITLAB:/etc/gitlab/$f" "$STAGE/secrets/$f" || fail "could not copy $f"
 done
 
-# ── 4. Verify ─────────────────────────────────────────────────────────────────
+# ── 5. Verify ─────────────────────────────────────────────────────────────────
 # Structural, not size-based. What went wrong in M18 was an archive of the right
 # shape and a plausible size holding nothing, so these ask whether each component
 # has contents rather than how many bytes it has.
@@ -90,11 +122,18 @@ tables="$(docker exec -i "$PG" pg_restore -l < "$STAGE/database.dump" \
 tar -tf "$STAGE/gitlab-files.tar" | grep -q '^db/database.sql.gz$' \
   && fail "archive carries db/database.sql.gz — SKIP=db was dropped, see AUDIT M18"
 
+tar -tf "$STAGE/gitlab-files.tar" | grep -q '^lfs\.tar\.gz$' \
+  && fail "archive carries lfs.tar.gz — SKIP=lfs was dropped"
+
+lfs_files="$(find "$LFS/nightly" -type f | wc -l)"
+[ "$lfs_files" -ge "$src_files" ] \
+  || fail "LFS nightly holds $lfs_files objects, GitLab has $src_files"
+
 [ -s "$STAGE/secrets/gitlab-secrets.json" ] || fail "gitlab-secrets.json is empty"
 grep -q db_key_base "$STAGE/secrets/gitlab-secrets.json" \
   || fail "gitlab-secrets.json has no db_key_base"
 
-# ── 5. Manifest ───────────────────────────────────────────────────────────────
+# ── 6. Manifest ───────────────────────────────────────────────────────────────
 gitlab_version="$(docker exec "$GITLAB" cat /opt/gitlab/version-manifest.txt 2>/dev/null \
   | head -1 || echo unknown)"
 pg_version="$(docker exec "$PG" postgres --version 2>/dev/null || echo unknown)"
@@ -106,8 +145,9 @@ postgres          $pg_version
 skipped           $SKIP
 gitlab-files.tar  $tar_bytes bytes (repositories/ $repo_bytes)
 database.dump     $db_bytes bytes, $tables tables
+lfs               $lfs_files objects in $LFS/nightly, weekly taken $(date -r "$LFS/weekly.taken" +%F)
 
-Restores in two parts. The archive holds no database and no secrets.
+Restores in three parts. The archive holds no database, no secrets and no LFS objects.
 
   1. Quiesce, leaving gitaly and redis RUNNING:
        docker exec $GITLAB gitlab-ctl stop puma sidekiq
@@ -125,20 +165,23 @@ Restores in two parts. The archive holds no database and no secrets.
        docker cp gitlab-files.tar $GITLAB:/var/opt/gitlab/backups/${STAMP}_gitlab_backup.tar
        docker exec $GITLAB gitlab-backup restore BACKUP=$STAMP SKIP=db
 
-  5. Reconfigure and check the two halves agree:
+  5. LFS, weekly then nightly, so an older set still finds objects deleted since:
+       rsync -a $LFS/weekly/ $LFS/nightly/ $LFS_SRC/
+
+  6. Reconfigure and check the two halves agree:
        docker exec $GITLAB gitlab-ctl reconfigure
        docker exec $GITLAB gitlab-rake gitlab:doctor:secrets
 
 Registry blobs are not here. Re-push them by re-running their pipelines.
 EOF
 
-# ── 6. Commit ─────────────────────────────────────────────────────────────────
+# ── 7. Commit ─────────────────────────────────────────────────────────────────
 rm -rf "$DEST"
 mv "$STAGE" "$DEST"
 trap - EXIT
 log "wrote $DEST"
 
-# ── 7. Retention ──────────────────────────────────────────────────────────────
+# ── 8. Retention ──────────────────────────────────────────────────────────────
 # After a verified success only, so a run of failures does not erode the history.
 mapfile -t old < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d -name '2*' \
   | sort -r | tail -n +$((KEEP + 1)))
@@ -148,7 +191,7 @@ for d in "${old[@]:-}"; do
   rm -rf "$d"
 done
 
-# ── 8. Off-box copy ───────────────────────────────────────────────────────────
+# ── 9. Off-box copy ───────────────────────────────────────────────────────────
 if [ -n "$OFFBOX" ]; then
   log "syncing to $OFFBOX"
   rsync {{ gitlab_backup_offbox_opts }} "$ROOT/" "$OFFBOX/" || fail "off-box sync failed"
@@ -156,7 +199,7 @@ else
   log "no off-box destination configured (AUDIT M16)"
 fi
 
-# ── 9. Report ─────────────────────────────────────────────────────────────────
+# ── 10. Report ────────────────────────────────────────────────────────────────
 date +%s > "$ROOT/.last-success"
 
 if [ -n "$PUSH_URL" ]; then
