@@ -7,12 +7,14 @@
       roles: [{ role: stack_deploy, stack_name: postgres }]
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/file_module.html
+# ansible_user is unset on hosts whose login comes from an ssh alias,
+# which deploy without become, so files are the login's anyway.
 - name: Create {{ stack_dest }}
   ansible.builtin.file:
     path: "{{ stack_dest }}"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ ansible_user | default(omit) }}"
+    group: "{{ ansible_user | default(omit) }}"
     mode: "0750"
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/copy_module.html
@@ -25,18 +27,19 @@
   ansible.builtin.copy:
     src: "{{ stack_src }}/{{ item }}"
     dest: "{{ stack_dest }}/"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ ansible_user | default(omit) }}"
+    group: "{{ ansible_user | default(omit) }}"
     mode: "0755"
   loop: "{{ stack_paths }}"
+  register: stack_copied
 
 # template does not create parent directories, unlike copy.
 - name: Create template directories
   ansible.builtin.file:
     path: "{{ stack_dest }}/{{ item | dirname }}"
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ ansible_user | default(omit) }}"
+    group: "{{ ansible_user | default(omit) }}"
     mode: "0755"
   loop: "{{ stack_templates }}"
 
@@ -45,10 +48,11 @@
   ansible.builtin.template:
     src: "{{ stack_src }}/{{ item }}"
     dest: "{{ stack_dest }}/{{ item | regex_replace('\\.j2$', '') }}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ ansible_user | default(omit) }}"
+    group: "{{ ansible_user | default(omit) }}"
     mode: "0644"
   loop: "{{ stack_templates }}"
+  register: stack_rendered
   no_log: true   # remove while debugging this task, then put it back
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/stat_module.html
@@ -66,18 +70,25 @@
   ansible.builtin.copy:
     src: "{{ stack_env_src }}"
     dest: "{{ stack_dest }}/.env"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ ansible_user | default(omit) }}"
+    group: "{{ ansible_user | default(omit) }}"
     mode: "0600"
   when: stack_env.stat.exists
+  register: stack_env_copied
   no_log: true   # remove while debugging this task, then put it back
 
 # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/command_module.html
 # --wait exits non-zero if a container never reaches healthy, so this task is the health gate.
 # Compose writes progress to stderr, hence changed_when reads it.
+# --build because compose otherwise only builds a missing image.
+# Compose only recreates on a compose config change,
+# and a single-file bind mount keeps the replaced file's old inode,
+# so any changed stack file forces a recreate.
 - name: Bring the stack up
   ansible.builtin.command:
-    cmd: docker compose up -d --wait --wait-timeout {{ stack_wait_timeout }}
+    cmd: >-
+      docker compose up -d --build --wait --wait-timeout {{ stack_wait_timeout }}
+      {{ '--force-recreate' if stack_copied is changed or stack_rendered is changed or stack_env_copied is changed else '' }}
     chdir: "{{ stack_dest }}"
   when: not ansible_check_mode
   register: stack_compose_up

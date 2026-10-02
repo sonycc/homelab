@@ -20,5 +20,6 @@
     - role: stack_deploy
       stack_name: valheim
       stack_dest: "{{ ansible_facts['env']['HOME'] }}/homelab/valheim"
+      stack_paths: [docker-compose.yml, install-mods.sh]
       stack_wait_timeout: 900
       tags: [valheim]
