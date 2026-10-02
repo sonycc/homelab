@@ -15,3 +15,88 @@ game_backup_push_token: >-
   {{ lookup('ansible.builtin.password',
             playbook_dir + '/.secrets/game_backup_push_token',
             chars='hexdigits', length=32) }}
+
+# Superuser of the shared postgres instance — POSTGRES_USER in stacks/postgres/.env,
+# not the "postgres" the image would otherwise default to.
+postgres_superuser: postgres_admin
+
+# Every login role and non-template database on the shared instance. The
+# postgres_tenant role reconciles both directions: entries missing from the
+# instance are created, objects missing from this list stop the play with a
+# paste-ready skeleton. So this is the inventory, not a copy of one.
+#
+# Names were read off the instance on 2026-09-26, not guessed — gitlab's database
+# is `gitlab` and NPM's role is `nginx`, both of which were assumed wrong first.
+# Re-read with:
+#
+#   ansible vm_core -b -m shell -a "docker exec postgres psql -U postgres_admin -d postgres -tAc 'SELECT pg_get_userbyid(datdba), datname FROM pg_database WHERE NOT datistemplate ORDER BY 1, 2'"
+#
+# `manage: false` means inventory only: it must exist, but nothing is created,
+# no password is held and none is verified. For objects owned outside this repo.
+#
+# Nothing here is ever ALTERed, so no run can rotate a password out from under a
+# service already using it — creation only happens when a role is absent.
+#
+# Seeding: the password lookup returns an existing file verbatim, so write each
+# stack's current value into .secrets/<name>_db_password before the first run.
+# Until then the play stops at "Report tenants whose stored password does not
+# work", which is intended — it is the only check that proves .secrets/ agrees
+# with the database.
+#
+# ascii_letters,digits and no punctuation: Home Assistant embeds its password in
+# a postgresql:// URI, where anything else would need escaping.
+#
+# The value is mirrored into each stack's .env, which the application reads. That
+# duplication goes away once stack_deploy learns to template .env; until then a
+# rotation is three steps — delete the .secrets file, run this play, update the
+# .env and redeploy that stack.
+postgres_tenants:
+  # The instance's own superuser and the database POSTGRES_DB created on first
+  # start. Owned by stacks/postgres, not by this list.
+  - name: postgres_admin
+    dbs: [default_db, postgres]
+    manage: false
+
+  - name: nginx
+    dbs: [nginx]
+    password: >-
+      {{ lookup('ansible.builtin.password',
+                playbook_dir + '/.secrets/nginx_db_password',
+                chars='ascii_letters,digits', length=32) }}
+
+  - name: gitlab
+    dbs: [gitlab]
+    password: >-
+      {{ lookup('ansible.builtin.password',
+                playbook_dir + '/.secrets/gitlab_db_password',
+                chars='ascii_letters,digits', length=32) }}
+
+  - name: grafana
+    dbs: [grafana]
+    password: >-
+      {{ lookup('ansible.builtin.password',
+                playbook_dir + '/.secrets/grafana_db_password',
+                chars='ascii_letters,digits', length=32) }}
+
+  # Live on this instance although the stack has not moved to vm-core yet.
+  - name: homeassistant
+    dbs: [homeassistant]
+    password: >-
+      {{ lookup('ansible.builtin.password',
+                playbook_dir + '/.secrets/homeassistant_db_password',
+                chars='ascii_letters,digits', length=32) }}
+
+  # Driven from outside this repo, so its password is not available to seed.
+  # Adopting it properly is AUDIT M20; whether it or the wiki owns the game data
+  # is P3.
+  - name: dndbot
+    dbs: [rollkeeper_core, rollkeeper_dnd5e2024]
+    manage: false
+
+  # Absent from the instance, so this is the one the role creates.
+  - name: mediawiki
+    dbs: [mediawiki]
+    password: >-
+      {{ lookup('ansible.builtin.password',
+                playbook_dir + '/.secrets/mediawiki_db_password',
+                chars='ascii_letters,digits', length=32) }}

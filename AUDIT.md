@@ -8,7 +8,9 @@
 **Updated:** 2026-08-06 — GitLab migrated to Proxmox; added M18, found while taking the migration backup  
 **Updated:** 2026-09-22 — Valheim replaced pelican and moved off-estate; dropped H2 with the pelican stack, added M19  
 **Updated:** 2026-09-24 — Valheim reached via a bastion rather than directly; M19 revised, backup credentials scoped  
-**Updated:** 2026-09-24 — resolved findings moved out of Open Findings into their own section
+**Updated:** 2026-09-24 — resolved findings moved out of Open Findings into their own section  
+**Updated:** 2026-09-26 — postgres inventory taken while building the `postgres_tenant` role; added M20 for the tenants this repo does not describe, and P3 for the rollkeeper overlap it exposed  
+**Updated:** 2026-09-27 — `postgres_tenant` deployed and its tenants verified; added M21, resolved, for the password check that authenticated over a loopback trust path and so verified nothing
 
 ---
 
@@ -234,6 +236,36 @@ tofu cannot render that host into `inventory.ini`, because it did not create it,
 
 ---
 
+### M20 — The shared postgres has tenants this repo does not describe
+
+**Files:** `stacks/postgres/`, `infra/ansible/group_vars/homelab.yml`
+
+Found by taking an inventory of the instance on 2026-09-26, while building the `postgres_tenant` role that was meant to replace the hand-written `CREATE ROLE` step each stack needs. The list did not match the repo:
+
+| Role | Database(s) | Stack in this repo |
+|------|-------------|--------------------|
+| `nginx` | `nginx` | `stacks/proxy` |
+| `gitlab` | `gitlab` | `stacks/gitlab` |
+| `grafana` | `grafana` | `stacks/monitoring` |
+| `homeassistant` | `homeassistant` | `stacks/homeassistant` |
+| `dndbot` | `rollkeeper_core`, `rollkeeper_dnd5e2024` | **none** |
+| `pelican` | `pelican` | **none — the stack was removed on 2026-09-22** |
+| `postgres_admin` | `default_db`, `postgres` | the instance itself |
+
+Two separate problems.
+
+**Decommissioning a stack does not decommission its database.** H2 was dropped when the pelican stack left this repo, but the role and its database stayed behind — a `LOGIN`-capable role whose password now exists nowhere in this repo, on an instance published on `vmbr1`. Nothing checks for orphans, so this was invisible for four days and would have stayed invisible indefinitely.
+
+**`dndbot` is a live tenant with no description here.** It owns two databases and is presumably driven by something outside this estate. `pg_dumpall` does back it up, so the data is safe, but no restore procedure here mentions it and no rotation covers its credentials.
+
+Worth recording separately: **the real names are not the obvious ones.** GitLab's database is `gitlab`, not `gitlabhq_production`, and NPM's role is `nginx`, not `npm`. Both were guessed wrong while drafting the tenant list; a restore procedure written from assumption would have failed.
+
+**Fix, per tenant:** adopt into `postgres_tenants` (which requires seeding `.secrets/<name>_db_password` from wherever that application's config holds it), or drop the role and database. `pelican` is being dropped. `dndbot` is undecided — see P3, which is the same discovery viewed as a design question.
+
+**Detector worth having:** the `postgres_tenant` role already reads `pg_roles`. Comparing that against `postgres_tenants` and reporting anything unaccounted for turns this class of drift into a play that fails, rather than an inventory somebody has to think to take.
+
+---
+
 ### L9 — Home Assistant recorder records everything
 
 **File:** `stacks/homeassistant/config/configuration.yaml`
@@ -328,6 +360,33 @@ WUD is publicly exposed at `wud.<domain>`, gated by GitLab OIDC. A pre-auth vuln
 
 Kept for the reasoning, not the history. Anything still outstanding from one of these is an open finding above.
 
+### M21 — the tenant password check verified nothing ✓ fixed 2026-09-27
+
+**File:** `infra/ansible/roles/postgres_tenant/tasks/main.yml`
+
+The `postgres_tenant` role verifies that the password in `.secrets/` is the one the database accepts, by connecting as each tenant. It was written to connect over `-h 127.0.0.1`, on the reasoning that the unix socket is `trust` and TCP would therefore enforce `scram-sha-256`.
+
+That reasoning was wrong. `pg_hba_file_rules` on this instance is initdb's default plus the one rule the image appends:
+
+```
+local all all            trust
+host  all all 127.0.0.1  trust
+host  all all ::1        trust
+host  all all all        scram-sha-256
+```
+
+Loopback is a second trust path. The check passed with an **empty** password and with a deliberately wrong one — `SELECT 1` returned `1`, exit 0. It verified nothing for its entire life, while being described in this repo and in commit messages as the thing that made seeding trustworthy.
+
+Found by running the psql command by hand while chasing an unrelated hang, not by any test. Nothing about the play's output distinguished a real verification from a vacuous one: every tenant reported `ok`.
+
+**Fix:** connect via the container's own name, which resolves over Docker DNS to its `172.21.0.8` address. That is not `127.0.0.1/32`, so it falls through to the scram rule. Confirmed by round trip — a wrong password now returns `FATAL: password authentication failed` and exit 2, and the corrected check immediately caught a real mismatch on the `mediawiki` role.
+
+**The lesson worth carrying:** inside a postgres container both the socket *and* loopback are trust paths. Any check that authenticates over either proves only that the server is answering. To exercise authentication the connection has to arrive from an address the appended rule covers.
+
+Same family as M14, M17 and M18 — a correct-looking success from something that did nothing — and the one that was hardest to see, because the thing reporting success *was* the check.
+
+---
+
 ### L2 — fail2ban ✓ deployed and verified 2026-07-27
 
 5 jails in `stacks/proxy/docker-compose.yml`, documented in `stacks/proxy/fail2ban/README.md`.
@@ -381,6 +440,26 @@ Cloudflare tunnels do not proxy raw TCP/SSH. Options:
 - **Tailscale / WireGuard** — route SSH through a VPN overlay.
 
 The compose file already maps `${GITLAB_SSH_PORT}:22` and sets `gitlab_rails['gitlab_shell_ssh_port']` — the gap is the ingress path.
+
+---
+
+### P3 — Decide whether the wiki or rollkeeper owns the game data
+
+The same discovery as M20, as a design question rather than a hygiene one.
+
+`dndbot` owns `rollkeeper_core` and `rollkeeper_dnd5e2024` — a ruleset-scoped schema for the same homebrew game the planned MediaWiki stack is about.
+
+This matters because **Cargo is the entire reason MediaWiki was chosen** over Wiki.js and Docusaurus. Wiki.js has tags but no field values; Docusaurus has real queries but needs git from every contributor. Cargo won because the template *is* the data source, so a generated index cannot drift from the pages.
+
+If rollkeeper is already the source of truth for spells, monsters and items, then Cargo is a second one — and the drift Cargo exists to prevent comes straight back, between the wiki and the bot instead of between pages and an index. One of them would be authoritative and the other would quietly rot.
+
+Three ways it can go, and each changes what gets built:
+
+- **Rollkeeper owns the data, the wiki owns prose.** Cargo and Page Forms are unnecessary, which also removes the custom image build, the branch-pinned extensions and the `update.php` discipline. Wiki.js or Docusaurus become viable again on much simpler terms.
+- **The wiki owns the data, the bot reads it.** Cargo stays; the bot queries its tables or the wiki API instead of holding its own copy.
+- **Genuinely separate concerns** — e.g. rollkeeper holds published 5e rules and the wiki holds homebrew only. Then both stand, and the boundary is worth writing down before it blurs.
+
+**Decide before the Cargo templates exist.** Retrofitting means rewriting every template and every page that uses one, and the whole point of the Cargo layer is that pages and indexes share one definition — so there is no cheap migration later.
 
 ---
 

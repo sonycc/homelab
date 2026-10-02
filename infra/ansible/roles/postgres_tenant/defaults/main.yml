@@ -1,0 +1,10 @@
+# Overridable per call; the tenant list itself lives in group_vars/homelab.yml.
+
+postgres_container: postgres
+
+postgres_tenants: []
+
+# Fail when the instance holds a login role or a non-template database the tenant
+# list does not mention. False downgrades it to a warning, for when the drift is
+# known and not yet reconciled.
+postgres_tenant_strict: true

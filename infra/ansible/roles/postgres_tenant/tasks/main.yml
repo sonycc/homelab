@@ -1,0 +1,228 @@
+# Reconciles the shared postgres instance against postgres_tenants, which is the
+# inventory of every login role and non-template database on it.
+#
+# Both directions:
+#   in the list, not in the instance   -> created
+#   in the instance, not in the list   -> reported, with a paste-ready skeleton
+#   in both                            -> password verified against .secrets/
+#
+# The drift report runs before any creation on purpose. A typo'd name would
+# otherwise create a spurious role and only then flag the real one as unmanaged.
+#
+# Nothing here ever ALTERs a password, so no run can rotate a credential out from
+# under a service already using it. Rotation stays deliberate.
+#
+# Runs through `docker exec` rather than over TCP: the host carries only Docker,
+# the socket inside the container is trust so no superuser password is needed, and
+# the client always matches the server — that skew is what AUDIT M18 was.
+#
+# `manage: false` means inventory only: assert it exists, never create, never
+# verify, no password needed. For tenants owned outside this repo (AUDIT M20).
+
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/assert_module.html
+- name: Require a tenant list and a superuser
+  ansible.builtin.assert:
+    that:
+      - postgres_tenants | length > 0
+      - postgres_superuser | default('') | length > 0
+    fail_msg: >-
+      postgres_tenant needs postgres_tenants and postgres_superuser — see
+      group_vars/homelab.yml.
+
+# An empty password cannot be caught later: Ansible does not close stdin when the
+# templated value is empty, so the reader in the verify task below blocks and the
+# play hangs instead of failing. A wrong password is postgres's business; a
+# missing one has to be caught here.
+# no_log because the condition reads item.password; only names reach the assert.
+- name: Collect managed tenants with no stored password
+  ansible.builtin.set_fact:
+    postgres_missing_passwords: "{{ postgres_missing_passwords | default([]) + [item.name] }}"
+  loop: "{{ postgres_tenants }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.manage | default(true)
+    - (item.password | default('') | trim | length) == 0
+  no_log: true
+
+# One failure per tenant rather than a single aggregate stop, so the whole list is
+# visible in one run. Only names are looped, never the tenant dicts, so nothing
+# here can print a password even under -vvv.
+- name: Report each tenant with no stored password
+  ansible.builtin.fail:
+    msg: "{{ item }}: .secrets/{{ item }}_db_password is empty or missing"
+  loop: "{{ postgres_missing_passwords | default([]) }}"
+  ignore_errors: true
+
+- name: Require a stored password for every managed tenant
+  ansible.builtin.assert:
+    that: (postgres_missing_passwords | default([]) | length) == 0
+    fail_msg: >-
+      {{ postgres_missing_passwords | default([]) | length }} of
+      {{ postgres_tenants | length }} tenants have no stored password — see above.
+      Seed each from that stack's .env. An empty file is worse than a missing one:
+      it hangs the play rather than failing it.
+
+# rolcanlogin drops the built-in pg_* roles, which are all NOLOGIN.
+# https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/command_module.html
+- name: Read login roles
+  ansible.builtin.command:
+    cmd: '{{ postgres_psql }} -tAc "SELECT rolname FROM pg_roles WHERE rolcanlogin ORDER BY 1"'
+  register: postgres_roles
+  changed_when: false
+
+- name: Read databases
+  ansible.builtin.command:
+    cmd: '{{ postgres_psql }} -tAc "SELECT datname FROM pg_database WHERE NOT datistemplate ORDER BY 1"'
+  register: postgres_databases
+  changed_when: false
+
+# owner|database, for the skeleton below. -A already separates on a pipe.
+- name: Read database owners
+  ansible.builtin.command:
+    cmd: '{{ postgres_psql }} -tAc "SELECT pg_get_userbyid(datdba), datname FROM pg_database WHERE NOT datistemplate ORDER BY 1, 2"'
+  register: postgres_db_owners
+  changed_when: false
+
+- name: Work out what is unaccounted for
+  ansible.builtin.set_fact:
+    # selectattr on an absent key raises, unlike `| default()`, so filter to the
+    # entries that carry `manage` before testing its value.
+    postgres_unmanaged_names: >-
+      {{ postgres_tenants | selectattr('manage', 'defined')
+         | selectattr('manage', 'equalto', false)
+         | map(attribute='name') | list }}
+    postgres_extra_roles: >-
+      {{ postgres_roles.stdout_lines
+         | difference(postgres_tenants | map(attribute='name') | list) }}
+    postgres_extra_databases: >-
+      {{ postgres_databases.stdout_lines
+         | difference(postgres_tenants | map(attribute='dbs') | flatten | list) }}
+
+- name: Show a skeleton for anything the list is missing
+  ansible.builtin.debug:
+    msg: |
+      Add to postgres_tenants in group_vars/homelab.yml:
+
+      {% for role in postgres_extra_roles %}
+        - name: {{ role }}
+          dbs: [{{ postgres_db_owners.stdout_lines
+                   | select('match', '^' ~ role ~ '[|]')
+                   | map('regex_replace', '^.*[|]', '')
+                   | join(', ') }}]
+          manage: false
+      {% endfor %}
+      {% if postgres_extra_databases %}
+      Databases with no entry: {{ postgres_extra_databases | join(', ') }}
+      {% endif %}
+  when: (postgres_extra_roles | length > 0) or (postgres_extra_databases | length > 0)
+
+- name: Require the list to account for everything on the instance
+  ansible.builtin.assert:
+    that:
+      - postgres_extra_roles | length == 0
+      - postgres_extra_databases | length == 0
+    fail_msg: >-
+      The instance holds objects postgres_tenants does not mention — roles:
+      {{ postgres_extra_roles | join(', ') | default('none', true) }}; databases:
+      {{ postgres_extra_databases | join(', ') | default('none', true) }}.
+      Paste the skeleton above, or set postgres_tenant_strict=false to proceed.
+  when: postgres_tenant_strict
+
+# Loops over names, not tenant dicts: a dict would be dumped into the output on
+# every item, and no_log here would censor the message that makes the task useful.
+- name: Require that unmanaged tenants are really there
+  ansible.builtin.assert:
+    that: item in postgres_roles.stdout_lines
+    fail_msg: >-
+      Role {{ item }} is listed with manage:false but is absent. Correct the name,
+      or drop manage:false to have it created.
+  loop: "{{ postgres_unmanaged_names }}"
+
+- name: Create missing roles
+  ansible.builtin.command:
+    cmd: "{{ postgres_psql_stdin }}"
+    # Doubling quotes is the SQL escape; a seeded password may contain one.
+    stdin: CREATE ROLE "{{ item.name }}" LOGIN PASSWORD '{{ item.password | replace("'", "''") }}';
+  loop: "{{ postgres_tenants }}"
+  when:
+    - item.manage | default(true)
+    - item.name not in postgres_roles.stdout_lines
+  no_log: true
+
+- name: Create missing databases
+  ansible.builtin.command:
+    cmd: "{{ postgres_psql_stdin }}"
+    stdin: CREATE DATABASE "{{ item.1 }}" OWNER "{{ item.0.name }}";
+  loop: "{{ postgres_tenants | subelements('dbs') }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1 }}"
+  when:
+    - item.0.manage | default(true)
+    - item.1 not in postgres_databases.stdout_lines
+
+# Proves the value in .secrets/ is the one the database accepts. Nothing else
+# detects a bad seed until the application fails to connect.
+#
+# -h must be the container's own name, not 127.0.0.1 or the socket. pg_hba here is
+# initdb's default plus one appended rule:
+#
+#   local all all            trust
+#   host  all all 127.0.0.1  trust
+#   host  all all ::1        trust
+#   host  all all all        scram-sha-256
+#
+# so both the socket and loopback skip authentication entirely and would pass with
+# any password at all. The container name resolves over Docker DNS to its own
+# 172.21.x.x address, which falls through to the scram rule.
+#
+# Authentication is per role, so the first database is enough. -w stops psql
+# prompting, and IFS= keeps leading or trailing whitespace in a password intact.
+- name: Verify each managed tenant can authenticate
+  ansible.builtin.command:
+    cmd: >-
+      docker exec -i {{ postgres_container }}
+      sh -c 'IFS= read -r p;
+      PGCONNECT_TIMEOUT=5 PGPASSWORD="$p"
+      psql -w -h {{ postgres_container }} -U "{{ item.name }}" -d "{{ item.dbs | first }}" -tAc "SELECT 1"'
+    stdin: "{{ item.password }}"
+  loop: "{{ postgres_tenants }}"
+  when: item.manage | default(true)
+  register: postgres_auth
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+# The verify task is no_log, so psql's message never reaches the output. Its
+# registered result still holds it, but the result also carries the password in
+# .item, so a sanitised name/error list is built first and only that is reported.
+- name: Collect postgres rejections
+  ansible.builtin.set_fact:
+    postgres_rejections: >-
+      {{ postgres_rejections | default([])
+         + [{'name': item.item.name,
+             'error': item.stderr | default('', true) | trim}] }}
+  loop: "{{ postgres_auth.results }}"
+  when:
+    - item.skipped is not defined
+    - item.rc != 0
+  no_log: true
+
+- name: Report each tenant postgres rejected
+  ansible.builtin.fail:
+    msg: "{{ item.name }}: {{ item.error | default('(no stderr captured)', true) }}"
+  loop: "{{ postgres_rejections | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ignore_errors: true
+
+- name: Require every managed tenant to authenticate
+  ansible.builtin.assert:
+    that: (postgres_rejections | default([]) | length) == 0
+    fail_msg: >-
+      postgres rejected {{ postgres_rejections | default([]) | length }} stored
+      password(s) — see above. Either the seed is wrong, in which case reseed
+      .secrets/<name>_db_password from that stack's .env; or the role was created
+      with a different password, in which case drop the role and let the next run
+      recreate it, or ALTER it to match. This role never issues ALTER, so a
+      mismatch cannot heal itself.
