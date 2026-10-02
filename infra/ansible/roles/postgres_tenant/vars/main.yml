@@ -1,0 +1,12 @@
+# Lazily evaluated, so postgres_superuser resolves at use time.
+#
+# -d postgres on every call: POSTGRES_DB is named something else, so there is no
+# database matching the superuser for psql to default to.
+
+postgres_psql: >-
+  docker exec {{ postgres_container }}
+  psql -U {{ postgres_superuser }} -d postgres
+
+postgres_psql_stdin: >-
+  docker exec -i {{ postgres_container }}
+  psql -U {{ postgres_superuser }} -d postgres -v ON_ERROR_STOP=1
