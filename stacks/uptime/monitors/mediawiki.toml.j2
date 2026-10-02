@@ -1,0 +1,11 @@
+# Rendered by stack_deploy. Edit the .j2, not the file on the VM.
+# Special:UserLogin rather than the root: anonymous read is off, so the root
+# answers 403 to an unauthenticated check.
+# Keyword rather than status code: an unconfigured wiki serves "set up the wiki
+# first" with HTTP 200, which a status-only check reports as healthy.
+type = "keyword"
+name = "Wiki"
+url = "https://wiki.{{ homelab_domain }}/index.php?title=Special:UserLogin"
+keyword = "wpLoginToken"
+interval = 60
+max_retries = 3
