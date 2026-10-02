@@ -93,3 +93,10 @@ postgres_tenants:
     dbs: [rollkeeper_core, rollkeeper_dnd5e2024]
     manage: false
 
+  # Absent from the instance, so this is the one the role creates.
+  - name: mediawiki
+    dbs: [mediawiki]
+    password: >-
+      {{ lookup('ansible.builtin.password',
+                playbook_dir + '/.secrets/mediawiki_db_password',
+                chars='ascii_letters,digits', length=32) }}
