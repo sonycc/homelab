@@ -12,10 +12,11 @@ locals {
       vm_id = proxmox_virtual_environment_vm.vm_core.vm_id
       ipv4  = flatten(proxmox_virtual_environment_vm.vm_core.ipv4_addresses)
     }
-    "vm-ci" = {
-      vm_id = proxmox_virtual_environment_vm.vm_ci.vm_id
-      ipv4  = flatten(proxmox_virtual_environment_vm.vm_ci.ipv4_addresses)
-    }
+    # Mothballed, a stopped VM reports no addresses.
+    # "vm-ci" = {
+    #   vm_id = proxmox_virtual_environment_vm.vm_ci.vm_id
+    #   ipv4  = flatten(proxmox_virtual_environment_vm.vm_ci.ipv4_addresses)
+    # }
   }
 
   # Matched positively against the two known subnets.
@@ -68,7 +69,8 @@ output "vm_core_lan_ip" {
   value       = local.vm_addresses["vm-core"].lan
 }
 
-output "vm_ci_lan_ip" {
-  description = "vm-ci DHCP address on vmbr0."
-  value       = local.vm_addresses["vm-ci"].lan
-}
+# Mothballed.
+# output "vm_ci_lan_ip" {
+#   description = "vm-ci DHCP address on vmbr0."
+#   value       = local.vm_addresses["vm-ci"].lan
+# }

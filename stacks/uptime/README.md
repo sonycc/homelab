@@ -22,7 +22,7 @@ max_retries = 3
 | `wud` | http | `https://wud.<domain>` |
 | `proxmox` | ping | `10.0.1.2` |
 | `vm-core` | ping | `10.0.1.20` |
-| `vm-ci` | ping | `10.0.1.30` |
+| `vm-ci` | ping | `10.0.1.30`, mothballed and not deployed |
 | `postgres` | port | `postgres:5432` |
 | `old-host` | ping | old host LAN address |
 | `postgres-backup` | push | called from `stacks/postgres/backup.sh` (AUDIT M17) |
