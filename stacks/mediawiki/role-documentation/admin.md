@@ -121,7 +121,15 @@ A form in `Form:` gives players fields instead of wikitext, and writes a templat
 
 ### Modules
 
-`Module:` pages hold Lua code, run with Scribunto and called from wikitext with `{{#invoke:Name|function}}`. Use them when template logic gets too tangled for ParserFunctions.
+`Module:` pages hold Lua code, run with Scribunto and called from wikitext with `{{#invoke:Name|function}}`. Use them when template logic gets too tangled for ParserFunctions. `Module:Place` is the working example: it reads Cargo with `mw.ext.cargo.query`.
+
+### Places
+
+Places nest. Each one names its parent in **Located in**, and `Module:Place` builds the path, the places directly below and every NPC and faction anywhere below.
+
+The root is `Cosmos`, the only place without a parent. The form requires a parent, so the root is a page created by hand holding just `{{Place}}`, and edited in source. `Category:Places` lists every place without a parent under **Top level**; anything there besides the root is missing its parent.
+
+To rename a place, root included, move it and keep the redirect. Pages naming the old title follow the redirect. `Special:ReplaceText` can tidy the old name out of **Located in** afterwards.
 
 ### Interface messages
 
@@ -137,14 +145,18 @@ These pages are stored in the repository under `stacks/mediawiki/pages/` and imp
 | `Category:Characters` | `pages/Category/Characters.wikitext` |
 | `Category:Factions` | `pages/Category/Factions.wikitext` |
 | `Category:NPCs` | `pages/Category/NPCs.wikitext` |
+| `Category:Places` | `pages/Category/Places.wikitext` |
 | `Form:Campaign` | `pages/Form/Campaign.wikitext` |
 | `Form:Character` | `pages/Form/Character.wikitext` |
 | `Form:Faction` | `pages/Form/Faction.wikitext` |
 | `Form:NPC` | `pages/Form/NPC.wikitext` |
+| `Form:Place` | `pages/Form/Place.wikitext` |
+| `Module:Place` | `pages/Module/Place.wikitext` |
 | `Template:Campaign` | `pages/Template/Campaign.wikitext` |
 | `Template:Character` | `pages/Template/Character.wikitext` |
 | `Template:Faction` | `pages/Template/Faction.wikitext` |
 | `Template:NPC` | `pages/Template/NPC.wikitext` |
+| `Template:Place` | `pages/Template/Place.wikitext` |
 | `Template:License` | `pages/Template/License.wikitext` |
 
 The file always wins: an edit on the wiki is overwritten next time. Change the file and redeploy instead. Imports are never approved automatically, so after a change to a `Category:` page, approve it at `Special:ApprovedRevs`. Templates and forms aren't approvable, so they go live as soon as they're imported.

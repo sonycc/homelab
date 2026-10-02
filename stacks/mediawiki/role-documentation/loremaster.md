@@ -244,7 +244,9 @@ Only admins can create or change templates. To propose one, build it on a user p
 
 ### Forms and structured data
 
-Some page types have a form instead of free wikitext: player characters, NPCs, campaigns and factions, made with `Form:Character`, `Form:NPC`, `Form:Campaign` and `Form:Faction`. The **Create or edit** box on `Category:Characters`, `Category:NPCs`, `Category:Campaigns` or `Category:Factions` opens the form, and those pages get an **Edit with form** tab. A red campaign, faction or leader link in an infobox opens its form too.
+Some page types have a form instead of free wikitext: player characters, NPCs, places, campaigns and factions, made with `Form:Character`, `Form:NPC`, `Form:Place`, `Form:Campaign` and `Form:Faction`. The **Create or edit** box on each type's category page, such as `Category:Places`, opens the form, and those pages get an **Edit with form** tab. A red link in an infobox opens the right form too.
+
+Places nest: every place names the place it's in, up to the root, `Cosmos`. A place's infobox shows its full path, the places directly inside it and every NPC and faction anywhere inside it. Under **Top level**, `Category:Places` lists places with no parent. Anything there besides `Cosmos` needs its **Located in** fixed.
 
 The data in those forms is stored in tables you can query, so you can build index pages that never go out of date:
 
@@ -279,7 +281,7 @@ When you set a player's licence, remove the line they wrote. A licence label gra
 
 ### Pages managed outside the wiki
 
-A few pages are maintained by the admin in files and re-imported on every update: the `Category:`, `Form:` and `Template:` pages for characters, NPCs, campaigns and factions, and `Template:License`. **Edits you make to them on the wiki are overwritten.** Ask the admin to change them instead. After an update, those category pages may show as awaiting approval again, so just approve them.
+A few pages are maintained by the admin in files and re-imported on every update: the `Category:`, `Form:` and `Template:` pages for characters, NPCs, places, campaigns and factions, `Module:Place` and `Template:License`. **Edits you make to them on the wiki are overwritten.** Ask the admin to change them instead. After an update, those category pages may show as awaiting approval again, so just approve them.
 
 ## Styling with HTML and CSS
 

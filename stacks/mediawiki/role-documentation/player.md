@@ -29,7 +29,7 @@ You bring the lore: places, people, history, your characters and what happened a
 | Create or edit a page | **Edit** button, or click a red link | Saved as a suggestion until approved |
 | Draft in your own space | `User:YourName/...` | Never needs approval. Every member can still read it |
 | Create a character | **Create or edit character** box on `Category:Characters` | A form fills in the infobox for you |
-| Create a campaign, faction or NPC | The box on `Category:Campaigns`, `Category:Factions` or `Category:NPCs`, or a red link in an infobox | Same as characters |
+| Create a place, NPC, faction or campaign | The box on `Category:Places`, `Category:NPCs`, `Category:Factions` or `Category:Campaigns`, or a red link in an infobox | Same as characters |
 | Upload files | `Special:Upload` | Up to 20 MB |
 | Discuss | Any talk page | Everyone can post |
 | Watch pages | Star icon, or **Watch this page** when saving | Changes show in `Special:Watchlist` |
@@ -72,7 +72,7 @@ Use the visual editor for prose. Use source editing for tables, templates and an
 
 1. Search for the title first. If nothing exists, the search results offer to create it. You can also click any red link.
 2. Start with a sentence that says what the subject is, for example "Thornwall is a ruined keep on the northern edge of the Reach."
-3. Add at least one category at the bottom, such as `[[Category:Places]]`.
+3. Add at least one category at the bottom, such as `[[Category:History]]`. Places, characters, NPCs, factions and campaigns have forms instead, which add the category for you.
 4. Save with a summary. The page now waits for a Loremaster.
 
 Not ready to share it as a suggestion yet? Draft it at `User:YourName/Thornwall`. When it's done, ask a Loremaster on the draft's talk page to move it into canon.
