@@ -1,0 +1,126 @@
+# MediaWiki on the shared postgres stack. See DEPLOYMENT.md for the one-time
+# database and hostname steps.
+
+x-mediawiki: &mediawiki
+  image: homelab/mediawiki
+  restart: unless-stopped
+  labels:
+    # Locally built, so there is no registry for WUD to poll.
+    wud.watch: "false"
+  networks:
+    - homelab
+  security_opt:
+    - no-new-privileges:true
+
+x-mediawiki-env: &mediawiki-env
+  TZ: ${TZ:-Europe/Oslo}
+
+  DOMAIN: ${DOMAIN:?DOMAIN not set}
+  MW_SITENAME: ${MW_SITENAME:?MW_SITENAME not set}
+  MW_LICENSE_HOLDER: ${MW_LICENSE_HOLDER:?MW_LICENSE_HOLDER not set}
+
+  MW_CONFIG_FILE: /var/www/config/LocalSettings.php
+
+  # Read by psql in entrypoint.sh and by config/settings/06-database-settings.php.
+  PGHOST: postgres
+  PGPORT: 5432
+  PGDATABASE: ${MW_DB_NAME:-mediawiki}
+  PGUSER: ${MW_DB_USER:-mediawiki}
+  PGPASSWORD: ${MW_DB_PASSWORD:?MW_DB_PASSWORD not set}
+  MW_DB_SCHEMA: ${MW_DB_SCHEMA:-mediawiki}
+
+  MW_SECRET_KEY: ${MW_SECRET_KEY:?MW_SECRET_KEY not set}
+
+services:
+  mediawiki:
+    <<: *mediawiki
+    build: .
+    pull_policy: build
+    container_name: mediawiki
+    entrypoint: ["/entrypoint.sh"]
+
+    environment:
+      <<: *mediawiki-env
+      # First-boot install only. Later changes do nothing; see README.md.
+      MW_ADMIN_USER: ${MW_ADMIN_USER:?MW_ADMIN_USER not set}
+      MW_ADMIN_PASSWORD: ${MW_ADMIN_PASSWORD:?MW_ADMIN_PASSWORD not set}
+      MW_SIGNUP_WEBHOOK_URL: ${MW_SIGNUP_WEBHOOK_URL:-}
+      MW_CAPTCHA_QUESTION: ${MW_CAPTCHA_QUESTION:?MW_CAPTCHA_QUESTION not set}
+      MW_CAPTCHA_ANSWERS: ${MW_CAPTCHA_ANSWERS:?MW_CAPTCHA_ANSWERS not set}
+
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./config:/var/www/config:ro
+      - ./logo:/var/www/html/logo:ro
+      # Imported into the wiki by entrypoint.sh.
+      - ./pages:/var/www/pages:ro
+      - mediawiki_images:/var/www/html/images
+      - mediawiki_logs:/var/log/mediawiki
+
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
+        reservations:
+          memory: 128m
+
+    # Keyword rather than status code; see uptime/monitors/mediawiki.toml.j2.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1/index.php?title=Special:UserLogin' | grep -q wpLoginToken"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+  # Job queue, plus the images/ archiving that pg_dumpall does not cover.
+  mediawiki-tasks:
+    <<: *mediawiki
+    # Built by the mediawiki service.
+    pull_policy: never
+    container_name: mediawiki-tasks
+
+    depends_on:
+      mediawiki:
+        condition: service_healthy
+
+    entrypoint: ["/tasks.sh"]
+
+    environment:
+      <<: *mediawiki-env
+      IMAGES_KEEP: ${IMAGES_KEEP:-10}
+      IMAGES_CHECK_INTERVAL: ${IMAGES_CHECK_INTERVAL:-3600}
+      BACKUP_MAX_AGE_SECONDS: ${BACKUP_MAX_AGE_SECONDS:-7200}
+      JOB_BATCH: ${JOB_BATCH:-50}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+
+    volumes:
+      - ./tasks.sh:/tasks.sh:ro
+      - ./config:/var/www/config:ro
+      - mediawiki_images:/var/www/html/images
+      - mediawiki_logs:/var/log/mediawiki
+      - ${BACKUP_HOST_DIR:-./backup}:/backups
+
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+        reservations:
+          memory: 64m
+
+    # Unhealthy means the archiving loop stopped working, not that images changed.
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /backups/.last-success ] && [ $$(( $$(date +%s) - $$(stat -c %Y /backups/.last-success) )) -lt $${BACKUP_MAX_AGE_SECONDS:-7200} ]"]
+      interval: 5m
+      timeout: 10s
+      retries: 2
+      start_period: 10m
+
+volumes:
+  mediawiki_images:
+  mediawiki_logs:
+
+networks:
+  homelab:
+    external: true
