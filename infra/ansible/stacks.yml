@@ -19,6 +19,11 @@
       stack_env_src: "{{ stack_src }}/.env.vm-core"
       tags: [postgres]
 
+    # Between postgres and its consumers: the role above gates on `up -d --wait`, so
+    # the database is answering by the time this runs. Tenant list in group_vars/homelab.yml.
+    - role: postgres_tenant
+      tags: [postgres, postgres_tenant]
+
     # data/ and letsencrypt/ are deliberately absent from stack_paths — runtime state, moved once by hand, not synced on every deploy.
     - role: stack_deploy
       stack_name: proxy
@@ -40,6 +45,15 @@
       stack_wait_timeout: 900   # raised from the default 300s because omnibus reconfigure on first boot runs for minutes before the healthcheck's own 3m start_period even begins.
       tags: [gitlab]
 
+    # stack_wait_timeout is raised because a first deploy builds the image, clones
+    # extensions, installs and runs update.php before the healthcheck can pass.
+    # The postgres role and database must exist first — see the stack's DEPLOYMENT.md.
+    - role: stack_deploy
+      stack_name: mediawiki
+      stack_paths: [docker-compose.yml, Dockerfile, entrypoint.sh, tasks.sh, config, logo, pages]
+      stack_wait_timeout: 600
+      tags: [mediawiki]
+
     # Monitors are templates because they name public hostnames, and the domain is
     # deliberately not in this repo. Needs homelab_domain in group_vars.
     # monitors/ is AutoKuma's source of truth; without it Kuma comes up empty.
@@ -58,6 +72,7 @@
         - monitors/vm-ci.toml.j2
         - monitors/gitlab-backup.toml.j2
         - monitors/game-backup-valheim.toml.j2
+        - monitors/mediawiki.toml.j2
       tags: [uptime]
 
 # Its own play, because a CI job gets root on the Docker daemon that runs it,
