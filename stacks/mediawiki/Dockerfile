@@ -1,7 +1,7 @@
 # 1.43 LTS, supported to December 2027. A major bump also moves EXT_BRANCH below.
 ARG MEDIAWIKI_VERSION=1.43.11
 
-FROM alpine:3.23 AS extensions
+FROM alpine:3.24 AS extensions
 
 ARG EXT_BRANCH=REL1_43
 # Not a Wikimedia skin, so no REL branch. Requires MediaWiki >= 1.43.
