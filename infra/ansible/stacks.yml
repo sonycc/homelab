@@ -66,7 +66,6 @@
         - monitors/registry.toml.j2
         - monitors/grafana.toml.j2
         - monitors/homeassistant.toml.j2
-        - monitors/wud.toml.j2
         - monitors/postgres.toml.j2
         - monitors/vm-core.toml.j2
         - monitors/vm-ci.toml.j2

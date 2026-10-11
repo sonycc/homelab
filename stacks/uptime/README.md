@@ -19,7 +19,6 @@ max_retries = 3
 | `monitoring` | http | `https://monitoring.<domain>` |
 | `registry` | http | `https://registry.<domain>` |
 | `ha` | http | `https://ha.<domain>` |
-| `wud` | http | `https://wud.<domain>` |
 | `proxmox` | ping | `10.0.1.2` |
 | `vm-core` | ping | `10.0.1.20` |
 | `vm-ci` | ping | `10.0.1.30` |
