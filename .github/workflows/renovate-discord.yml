@@ -14,9 +14,10 @@ jobs:
       - name: Post to Discord
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          MENTION: ${{ vars.DISCORD_MENTION }}
           TITLE: ${{ github.event.pull_request.title }}
           URL: ${{ github.event.pull_request.html_url }}
         run: |
-          jq -n --arg title "$TITLE" --arg url "$URL" \
-            '{content: "**Image update available** - \($title)\n\($url)"}' \
+          jq -n --arg mention "$MENTION" --arg title "$TITLE" --arg url "$URL" \
+            '{content: "\($mention) **Image update available** - \($title)\n\($url)", allowed_mentions: {parse: ["users", "roles"]}}' \
           | curl -fsS -H 'Content-Type: application/json' -d @- "$WEBHOOK"
