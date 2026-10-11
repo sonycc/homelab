@@ -1,5 +1,5 @@
 # 1.43 LTS, supported to December 2027. A major bump also moves EXT_BRANCH below.
-ARG MEDIAWIKI_VERSION=1.43.9
+ARG MEDIAWIKI_VERSION=1.46.2
 
 FROM alpine:3.23 AS extensions
 
