@@ -83,7 +83,7 @@ services:
           memory: 32m
 
   grafana:
-    image: grafana/grafana-enterprise:13.0.1-security-01
+    image: grafana/grafana-enterprise:13.2.3
     container_name: grafana
     restart: unless-stopped
     init: true
