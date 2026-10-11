@@ -1,0 +1,61 @@
+<noinclude>
+Infobox and Cargo row for a class. Create pages with [[Form:Class]].
+Each system it exists in is a [[Template:Class system]] row inside <code>in_systems</code>, which sets the lists the stat blocks pick from.
+[[Module:Species]] lists each system once, and flags repeats in [[:Category:Classes with repeated systems]].
+
+{{#cargo_declare:_table=Classes
+|image=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A class, such as wizard, and the systems it exists in. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"in_systems": {
+			"label": "Systems",
+			"description": "One {{Class system}} per system the class exists in",
+			"type": "content"
+		},
+		"image": {
+			"label": "Image",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"in_systems",
+		"image",
+		"summary"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Classes
+|image={{{image|}}}
+|summary={{{summary|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{image|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{image}}}|250px]]
+}}
+{{#if:{{{in_systems|}}}|
+{{!}}-
+! Systems
+{{!}} {{#if:{{{in_systems|}}}|{{#invoke:Species|systems|{{{in_systems}}}|noun=classes|rules=class features|mark=playable class|repeats=Classes with repeated systems}}}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:Classes]]
+</includeonly>

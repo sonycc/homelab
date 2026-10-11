@@ -1,0 +1,45 @@
+<noinclude>
+Create or edit a species' PF2 rules, on a page titled after it, such as Human (PF2): {{#forminput:form=PF2 species traits|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|PF2 species traits}}}
+{| class="formtable"
+|-
+! Hit points:
+| {{{field|hit_points}}}
+|-
+! Size:
+| {{{field|size|input type=dropdown|values=Tiny,Small,Medium,Small or Medium,Large|default=Medium}}}
+|-
+! Speed:
+| {{{field|speed|placeholder=25 feet}}}
+|-
+! Attribute boosts:
+| {{{field|boosts|placeholder=Constitution, Wisdom, free}}}
+|-
+! Attribute flaw:
+| {{{field|flaw|placeholder=Charisma}}}
+|-
+! Languages:
+| {{{field|languages}}}
+|-
+! Traits:
+| {{{field|traits|placeholder=Dwarf, Humanoid}}}
+|-
+! Special abilities:
+| {{{field|abilities|input type=textarea|rows=4|editor=wikieditor}}}
+|-
+! Heritages:
+| {{{field|heritages|input type=textarea|rows=4|editor=wikieditor}}}
+|}
+{{{end template}}}
+
+'''Description and notes:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

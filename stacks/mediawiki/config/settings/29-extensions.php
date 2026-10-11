@@ -71,6 +71,26 @@ $wgScribuntoUseGeSHi = true;
 // Added by the Dockerfile.
 wfLoadExtension( 'Cargo' );
 wfLoadExtension( 'PageForms' );
+// A list of up to 25 values loads with the form and opens on click.
+// A longer one searches the wiki as you type, so a page made in another tab shows up without a reload.
+$wgPageFormsMaxLocalAutocompleteValues = 25;
+// Matches anywhere in a value, not only at word starts.
+// The word-start search writes an apostrophe separator as \', which PostgreSQL rejects.
+$wgPageFormsAutocompleteOnAllChars = true;
+
+// Dark mode and form checks, from config/ rather than MediaWiki:Common.css and Common.js.
+$wgResourceModules['homelab.pageforms.styles'] = [
+	'styles' => 'css/page-forms.css',
+	'localBasePath' => dirname( __DIR__ ),
+];
+$wgResourceModules['homelab.pageforms'] = [
+	'scripts' => 'js/page-forms.js',
+	'localBasePath' => dirname( __DIR__ ),
+];
+$wgHooks['BeforePageDisplay'][] = static function ( $out, $skin ) {
+	$out->addModuleStyles( 'homelab.pageforms.styles' );
+	$out->addModules( 'homelab.pageforms' );
+};
 
 // Special:CreateClass writes templates and forms, which only admins can save.
 $wgGroupPermissions['user']['createclass'] = false;
@@ -79,6 +99,15 @@ $wgGroupPermissions['sysop']['createclass'] = true;
 $wgGroupPermissions['user']['multipageedit'] = false;
 $wgGroupPermissions['loremaster']['multipageedit'] = true;
 $wgGroupPermissions['sysop']['multipageedit'] = true;
+
+// === TabberNeue ===
+
+// Added by the Dockerfile. Module:Stats builds the per-system stat tabs with it.
+wfLoadExtension( 'TabberNeue' );
+// A message of - switches its tracking category off, which every page with stat tabs would otherwise join.
+$wikiMessages += [
+	'Tabberneue-tabber-category' => '-',
+];
 
 // === Approved Revs ===
 

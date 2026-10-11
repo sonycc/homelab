@@ -1,0 +1,113 @@
+<noinclude>
+Infobox and Cargo row for a creature. Create pages with [[Form:Creature]].
+Leave the world empty for creatures found in any setting. The stats go in its e5, e5_5, pf2 and coc7 parameters, shown as tabs under the infobox.
+
+{{#cargo_declare:_table=Creatures
+|creature_type=String
+|world=Page
+|habitat=List (,) of Page
+|image=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A creature or monster. Its stats go in one stat block per system, shown as tabs under the infobox. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"creature_type": {
+			"label": "Type",
+			"description": "Such as beast, undead or fiend",
+			"type": "line"
+		},
+		"world": {
+			"label": "World",
+			"description": "The world it belongs to. Empty for any world",
+			"type": "wiki-page-name"
+		},
+		"habitat": {
+			"label": "Habitat",
+			"description": "Places it lives, separated by commas",
+			"type": "string"
+		},
+		"image": {
+			"label": "Image",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		},
+		"e5": {
+			"label": "E5 stat block",
+			"description": "{{E5 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"e5_5": {
+			"label": "E5.5 stat block",
+			"description": "{{E5.5 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"pf2": {
+			"label": "PF2 stat block",
+			"description": "{{PF2 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"coc7": {
+			"label": "CoC 7 stat block",
+			"description": "{{CoC 7 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"creature_type",
+		"world",
+		"habitat",
+		"image",
+		"summary",
+		"e5",
+		"e5_5",
+		"pf2",
+		"coc7"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Creatures
+|creature_type={{{creature_type|}}}
+|world={{{world|}}}
+|habitat={{{habitat|}}}
+|image={{{image|}}}
+|summary={{{summary|}}}
+}}
+<div style="float:right; clear:right; width:26em; max-width:100%; margin:0 0 1em 1em">
+{| class="wikitable" style="width:100%; margin:0"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{image|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{image}}}|250px]]
+}}
+{{#if:{{{creature_type|}}}|
+{{!}}-
+! Type
+{{!}} {{{creature_type|}}}
+}}
+|-
+! World
+| {{#if:{{{world|}}}|{{#formredlink:target={{{world}}}|form=World}}|Any}}
+{{#if:{{{habitat|}}}|
+{{!}}-
+! Habitat
+{{!}} {{#arraymap:{{{habitat|}}}|,|@@@@|{{#formredlink:target=@@@@|form=Place}}|,&#32;}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+{{#if:{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}|{{#invoke:Stats|tabs|{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}}}}}
+</div>
+[[Category:Creatures]]
+</includeonly>

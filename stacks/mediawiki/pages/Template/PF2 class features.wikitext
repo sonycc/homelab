@@ -1,0 +1,184 @@
+<noinclude>
+Pathfinder 2nd edition rules for one class, on a page titled after it, such as Wizard (PF2).
+The class' own page links here from its Systems box. Create pages from that link, or with [[Form:PF2 class features]].
+
+{{#cargo_declare:_table=PF2_class_features
+|class=Page
+|key_attribute=String
+|hit_points=Integer
+|perception=String
+|saving_throws=String
+|skills=String
+|attacks=String
+|defenses=String
+|class_dc=String
+|spellcasting=String
+|subclass_name=String
+|features=Wikitext
+|subclasses=Wikitext
+}}
+
+<templatedata>
+{
+	"description": "Pathfinder 2nd edition rules for one class, on a page titled after it, such as Wizard (PF2). Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"key_attribute": {
+			"label": "Key attribute",
+			"description": "Such as Intelligence",
+			"type": "line"
+		},
+		"hit_points": {
+			"label": "Hit points",
+			"description": "Per level, plus the Constitution modifier",
+			"type": "number"
+		},
+		"perception": {
+			"label": "Perception",
+			"description": "Starting rank, such as Trained",
+			"type": "line"
+		},
+		"saving_throws": {
+			"label": "Saving throws",
+			"description": "Starting ranks",
+			"type": "line"
+		},
+		"skills": {
+			"label": "Skills",
+			"description": "Starting skills",
+			"type": "line"
+		},
+		"attacks": {
+			"label": "Attacks",
+			"description": "Starting ranks",
+			"type": "line"
+		},
+		"defenses": {
+			"label": "Defenses",
+			"description": "Starting ranks",
+			"type": "line"
+		},
+		"class_dc": {
+			"label": "Class DC",
+			"description": "Starting rank",
+			"type": "line"
+		},
+		"spellcasting": {
+			"label": "Spellcasting",
+			"description": "Tradition and starting ranks, empty if it casts no spells",
+			"type": "line"
+		},
+		"subclass_name": {
+			"label": "Subclass name",
+			"description": "What its subclasses are called, such as Arcane School",
+			"type": "line"
+		},
+		"features": {
+			"label": "Features",
+			"description": "Its features by level, such as a level table. Shown as a section",
+			"type": "content"
+		},
+		"subclasses": {
+			"label": "Subclasses",
+			"description": "Its subclasses, if any. Shown as a section",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"key_attribute",
+		"hit_points",
+		"perception",
+		"saving_throws",
+		"skills",
+		"attacks",
+		"defenses",
+		"class_dc",
+		"spellcasting",
+		"subclass_name",
+		"features",
+		"subclasses"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=PF2_class_features
+|class={{#invoke:Species|hub}}
+|key_attribute={{{key_attribute|}}}
+|hit_points={{{hit_points|}}}
+|perception={{{perception|}}}
+|saving_throws={{{saving_throws|}}}
+|skills={{{skills|}}}
+|attacks={{{attacks|}}}
+|defenses={{{defenses|}}}
+|class_dc={{{class_dc|}}}
+|spellcasting={{{spellcasting|}}}
+|subclass_name={{{subclass_name|}}}
+|features={{{features|}}}
+|subclasses={{{subclasses|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{#invoke:Species|hub}} in [[PF2]]
+|-
+! Class
+| [[{{#invoke:Species|hub}}]]
+{{#if:{{{key_attribute|}}}|
+{{!}}-
+! Key attribute
+{{!}} {{{key_attribute|}}}
+}}
+{{#if:{{{hit_points|}}}|
+{{!}}-
+! Hit points
+{{!}} {{{hit_points|}}}
+}}
+{{#if:{{{perception|}}}|
+{{!}}-
+! Perception
+{{!}} {{{perception|}}}
+}}
+{{#if:{{{saving_throws|}}}|
+{{!}}-
+! Saving throws
+{{!}} {{{saving_throws|}}}
+}}
+{{#if:{{{skills|}}}|
+{{!}}-
+! Skills
+{{!}} {{{skills|}}}
+}}
+{{#if:{{{attacks|}}}|
+{{!}}-
+! Attacks
+{{!}} {{{attacks|}}}
+}}
+{{#if:{{{defenses|}}}|
+{{!}}-
+! Defenses
+{{!}} {{{defenses|}}}
+}}
+{{#if:{{{class_dc|}}}|
+{{!}}-
+! Class DC
+{{!}} {{{class_dc|}}}
+}}
+{{#if:{{{spellcasting|}}}|
+{{!}}-
+! Spellcasting
+{{!}} {{{spellcasting|}}}
+}}
+{{#if:{{{subclass_name|}}}|
+{{!}}-
+! Subclass name
+{{!}} {{{subclass_name|}}}
+}}
+|}
+{{#if:{{{features|}}}|
+== Features ==
+{{{features}}}
+}}
+{{#if:{{{subclasses|}}}|
+== Subclasses ==
+{{{subclasses}}}
+}}
+[[Category:PF2 class features]]
+</includeonly>

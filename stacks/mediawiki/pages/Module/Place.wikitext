@@ -1,0 +1,192 @@
+-- Place hierarchy for Template:Place, Template:World and Category:Places, built from the Places and Worlds Cargo tables.
+-- Each place stores only its parent in located_in, and every chain ends at a world. Everything else is walked here.
+local p = {}
+
+local MAX_DEPTH = 10
+local LIMIT = 5000
+
+local function norm(name)
+	name = name and mw.text.trim(name)
+	if not name or name == '' then return nil end
+	local title = mw.title.new(name)
+	return title and title.prefixedText
+end
+
+-- A moved place leaves a redirect, and pages still naming the old title follow it.
+local resolved = {}
+local function resolve(name, known)
+	if not name or known[name] then return name end
+	if resolved[name] == nil then
+		local target = mw.title.new(name).redirectTarget
+		resolved[name] = target and target.prefixedText or name
+	end
+	return resolved[name]
+end
+
+-- known holds places and worlds alike. Worlds never have a parent.
+local function loadTree()
+	local rows = mw.ext.cargo.query('Places', '_pageName=page,located_in=parent', { orderBy = '_pageName', limit = LIMIT })
+	local known, worlds, parent, children = {}, {}, {}, {}
+	for _, row in ipairs(mw.ext.cargo.query('Worlds', '_pageName=page', { orderBy = '_pageName', limit = LIMIT })) do
+		local world = norm(row.page)
+		known[world] = true
+		worlds[world] = true
+	end
+	for _, row in ipairs(rows) do
+		known[norm(row.page)] = true
+	end
+	for _, row in ipairs(rows) do
+		local page = norm(row.page)
+		local up = resolve(norm(row.parent), known)
+		if up then
+			parent[page] = up
+			children[up] = children[up] or {}
+			table.insert(children[up], page)
+		end
+	end
+	return known, worlds, parent, children
+end
+
+-- Top-down chain ending at start, or nil on a loop or past MAX_DEPTH.
+local function ancestors(start, parent, here)
+	local chain, seen, node = {}, { [here] = true }, start
+	while node do
+		if seen[node] or #chain >= MAX_DEPTH then return nil end
+		seen[node] = true
+		table.insert(chain, 1, node)
+		node = parent[node]
+	end
+	return chain
+end
+
+-- here and every place below it.
+local function within(here, children)
+	local set, frontier = { [here] = true }, { here }
+	for _ = 1, MAX_DEPTH do
+		local found = {}
+		for _, node in ipairs(frontier) do
+			for _, child in ipairs(children[node] or {}) do
+				if not set[child] then
+					set[child] = true
+					table.insert(found, child)
+				end
+			end
+		end
+		if #found == 0 then break end
+		frontier = found
+	end
+	return set
+end
+
+-- Pages in tbl where any of fields names a place in set. List fields arrive comma-joined.
+local function pagesWithin(tbl, fields, set, known)
+	local aliases = {}
+	for i, field in ipairs(fields) do
+		aliases[i] = field .. '=f' .. i
+	end
+	local rows = mw.ext.cargo.query(tbl, '_pageName=page,' .. table.concat(aliases, ','), { orderBy = '_pageName', limit = LIMIT })
+	local out = {}
+	for _, row in ipairs(rows) do
+		local hit = false
+		for i = 1, #fields do
+			for value in mw.text.gsplit(row['f' .. i] or '', ',', true) do
+				hit = hit or set[resolve(norm(value), known) or ''] or false
+			end
+		end
+		if hit then table.insert(out, norm(row.page)) end
+	end
+	table.sort(out)
+	return out
+end
+
+-- Systems of the campaigns set in a world in set.
+local function systemsWithin(set, known)
+	local out, seen = {}, {}
+	for _, row in ipairs(mw.ext.cargo.query('Campaigns', 'world=world,system=system', { orderBy = '_pageName', limit = LIMIT })) do
+		local system = norm(row.system)
+		if system and not seen[system] and set[resolve(norm(row.world), known) or ''] then
+			seen[system] = true
+			table.insert(out, system)
+		end
+	end
+	table.sort(out)
+	return out
+end
+
+local function links(names)
+	local out = {}
+	for i, name in ipairs(names) do
+		out[i] = '[[' .. name .. ']]'
+	end
+	return out
+end
+
+local function row(label, names)
+	if #names == 0 then return nil end
+	local list = table.concat(links(names), ', ')
+	if #names > 10 then
+		label = label .. ' (' .. #names .. ')'
+		list = '<div class="mw-collapsible mw-collapsed">' .. list .. '</div>'
+	end
+	return '|-\n! ' .. label .. '\n| ' .. list
+end
+
+-- Infobox rows for the current place or world. Argument 1 is a place's located_in.
+function p.rows(frame)
+	local here = mw.title.getCurrentTitle().prefixedText
+	local known, _, parent, children = loadTree()
+	local up = resolve(norm(frame.args[1]), known)
+	parent[here] = up
+	local out = {}
+
+	if up then
+		local chain = ancestors(up, parent, here)
+		local cell
+		if chain then
+			local parts = links(chain)
+			if not known[up] then
+				parts[#parts] = frame:callParserFunction('#formredlink', { 'target=' .. up, 'form=Place' })
+			end
+			cell = table.concat(parts, ' › ')
+		else
+			cell = '<strong class="error">Located in loops back on itself or nests deeper than ' .. MAX_DEPTH .. ' levels.</strong>'
+		end
+		table.insert(out, '|-\n! Located in\n| ' .. cell)
+	end
+
+	local kids = children[here] or {}
+	table.sort(kids)
+	local set = within(here, children)
+	table.insert(out, row('Places here', kids))
+	table.insert(out, row('NPCs', pagesWithin('NPCs', { 'location', 'world' }, set, known)))
+	table.insert(out, row('Factions', pagesWithin('Factions', { 'seat', 'world' }, set, known)))
+	table.insert(out, row('Creatures', pagesWithin('Creatures', { 'habitat', 'world' }, set, known)))
+	table.insert(out, row('Campaigns', pagesWithin('Campaigns', { 'world' }, set, known)))
+	table.insert(out, row('Systems played', systemsWithin(set, known)))
+
+	return table.concat(out, '\n')
+end
+
+-- Places whose chain of Located in never reaches a world, and where it stops.
+function p.strays(frame)
+	local known, worlds, parent = loadTree()
+	local out = {}
+	for name in pairs(known) do
+		if not worlds[name] then
+			local node, depth = name, 0
+			while parent[node] and depth < MAX_DEPTH do
+				node = parent[node]
+				depth = depth + 1
+			end
+			if not worlds[node] then
+				local why = node == name and 'no Located in' or 'stops at [[' .. node .. ']]'
+				table.insert(out, '[[' .. name .. ']]: ' .. why)
+			end
+		end
+	end
+	if #out == 0 then return "''None.''" end
+	table.sort(out)
+	return '* ' .. table.concat(out, '\n* ')
+end
+
+return p

@@ -1,0 +1,13 @@
+{{#default_form:E5 species traits}}
+D&D 5th edition (2014) rules for each species, one page per species, such as Human (E5). Each species' page links to its own.
+
+{{#forminput:form=E5 species traits|button text=Create or edit E5 species rules}}
+
+== All E5 species rules ==
+{{#cargo_query:tables=E5_species_traits
+|fields=_pageName=Page,species=Species,creature_type=Creature type,size=Size,speed=Speed,ability_scores=Ability score increases,languages=Languages
+|order by=species
+|format=table
+|limit=500
+}}
+[[Category:Species| E5 rules]]

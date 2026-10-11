@@ -1,0 +1,57 @@
+<div class="wiki-license" style="margin-top:1em; padding:0.5em 1em; border:1px solid #c8ccd1; background:#f8f9fa; font-size:90%;">
+{{#if:{{{source|}}}
+ |This page includes material from {{{source}}}{{#if:{{{holder|}}}| by {{{holder}}}}}, licensed under {{#if:{{{url|}}}|[{{{url}}} {{{1|}}}]|{{{1|}}}}}.
+ |This page is available under {{#if:{{{url|}}}|[{{{url}}} {{{1|}}}]|{{{1|}}}}}{{#if:{{{holder|}}}|, © {{{holder}}}}}.
+}} This is an exception to the site-wide licence.
+</div><includeonly>[[Category:Licensed {{{1|unspecified}}}]]</includeonly><noinclude>
+Marks a page whose licence differs from the site default in the footer.
+Place it at the bottom of the page.
+
+Material from a published game:
+<pre>
+{{License|CC BY 4.0
+ |url=https://creativecommons.org/licenses/by/4.0/
+ |source=System Reference Document 5.1
+ |holder=Wizards of the Coast LLC
+}}
+</pre>
+
+A player's own work at their request:
+<pre>
+{{License|CC BY 4.0|url=https://creativecommons.org/licenses/by/4.0/|holder=PlayerName}}
+</pre>
+
+Every page using this template is listed in a <code>Category:Licensed ...</code> category named after the licence.
+
+<templatedata>
+{
+	"description": "Marks a page whose licence differs from the site default. Place at the bottom of the page.",
+	"params": {
+		"1": {
+			"label": "Licence",
+			"description": "Licence name, e.g. CC BY 4.0",
+			"type": "string",
+			"required": true
+		},
+		"url": {
+			"label": "Licence URL",
+			"description": "Link to the licence text",
+			"type": "url",
+			"suggested": true
+		},
+		"source": {
+			"label": "Source",
+			"description": "Published work the material comes from, e.g. System Reference Document 5.1",
+			"type": "string"
+		},
+		"holder": {
+			"label": "Rights holder",
+			"description": "Publisher or author holding the rights",
+			"type": "string",
+			"suggested": true
+		}
+	},
+	"format": "block"
+}
+</templatedata>
+</noinclude>

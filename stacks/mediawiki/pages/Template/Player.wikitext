@@ -1,0 +1,74 @@
+<noinclude>
+Profile on a player's own user page, such as User:Mira. Create it with [[Form:Player]].
+Its Cargo row is what the Player and Game master pickers list, so drafts such as User:Mira/Notes never appear there.
+Only the root user page stores a row. Characters and campaigns are worked out by [[Module:Campaign]].
+
+{{#cargo_declare:_table=Players
+|username=String
+|display_name=String
+|pronouns=String
+|image=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A player's profile, on their own user page. Characters and campaigns are listed automatically. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"display_name": {
+			"label": "Display name",
+			"description": "The name shown at the top of the profile",
+			"type": "line"
+		},
+		"pronouns": {
+			"label": "Pronouns",
+			"description": "Such as she/her, he/him or they/them",
+			"type": "line"
+		},
+		"image": {
+			"label": "Image",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"display_name",
+		"pronouns",
+		"image",
+		"summary"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#ifeq:{{FULLPAGENAME}}|{{ns:User}}:{{ROOTPAGENAME}}|{{#cargo_store:_table=Players
+|username={{ROOTPAGENAME}}
+|display_name={{{display_name|}}}
+|pronouns={{{pronouns|}}}
+|image={{{image|}}}
+|summary={{{summary|}}}
+}}}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{#if:{{{display_name|}}}|{{{display_name}}}|{{ROOTPAGENAME}}}}
+{{#if:{{{image|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{image}}}|200px]]
+}}
+{{#if:{{{pronouns|}}}|
+{{!}}-
+! Pronouns
+{{!}} {{{pronouns}}}
+}}
+{{#invoke:Campaign|playerRows|{{ROOTPAGENAME}}}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:Players]]
+</includeonly>

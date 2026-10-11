@@ -1,0 +1,21 @@
+<noinclude>
+Create or edit a species' CoC 7 rules, on a page titled after it, such as Human (CoC 7): {{#forminput:form=CoC 7 species traits|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|CoC 7 species traits}}}
+{| class="formtable"
+|-
+! Summary:
+| {{{field|summary|input type=textarea|rows=2|editor=wikieditor}}}
+|}
+{{{end template}}}
+
+'''Description and notes:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

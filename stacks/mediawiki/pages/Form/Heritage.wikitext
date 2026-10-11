@@ -1,0 +1,30 @@
+<noinclude>
+Create or edit a PF2 heritage: {{#forminput:form=Heritage|autocomplete on category=PF2 Heritages|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|Heritage}}}
+{| class="formtable"
+|-
+! Ancestry:
+| {{{field|ancestry|input type=combobox|values from category=PF2 species|existing values only}}} empty for a versatile heritage, open to any ancestry
+|-
+! Rarity:
+| {{{field|rarity|input type=dropdown|values=Common,Uncommon,Rare,Unique|default=Common}}}
+|-
+! Summary:
+| {{{field|summary|input type=textarea|rows=2}}}
+|-
+! Ability:
+| {{{field|ability|input type=textarea|rows=4|editor=wikieditor}}}
+|}
+{{{end template}}}
+
+'''Description and lore:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

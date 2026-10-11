@@ -1,0 +1,94 @@
+/* Page Forms and its Select2 dropdowns hardcode light colours.
+   These take the skin's colour tokens instead, so forms follow light and dark mode.
+   The fallbacks are Page Forms' own light colours. */
+
+.multipleTemplateInstance {
+	background-color: var( --background-color-interactive-subtle, #eaecf0 );
+	border-color: var( --border-color-base, #a2a9b1 );
+	color: var( --color-base, #202122 );
+}
+
+.multipleTemplateInstance.sortable-chosen {
+	background-color: var( --background-color-interactive, #dadde3 );
+}
+
+div.infoMessage {
+	background: var( --background-color-interactive-subtle, #eeeeee );
+	border-color: var( --border-color-base, #777777 );
+}
+
+div.editOptions {
+	border-color: var( --border-color-base, #c8ccd1 );
+}
+
+#pfForm textarea,
+#pfForm input.formInput,
+#pfForm input.yearInput,
+#pfForm input.dayInput,
+#pfForm input.hoursInput,
+#pfForm input.minutesInput,
+#pfForm input.secondsInput,
+#pfForm select,
+input.pfComboBoxActual {
+	background-color: var( --background-color-base, #ffffff );
+	border-color: var( --border-color-base, #bbbbbb );
+	color: var( --color-base, #202122 );
+}
+
+#pfForm input[readonly] {
+	background: var( --background-color-disabled-subtle, #eeeeee );
+}
+
+.inputError {
+	background: var( --background-color-error-subtle, #fceeee );
+}
+
+input.modifiedInput {
+	background: var( --background-color-warning-subtle, #ffdde5 );
+}
+
+.pfTokensGhost {
+	color: var( --color-subtle, #777777 );
+	background-color: var( --background-color-interactive-subtle, #f7f7f7 ) !important;
+	border-color: var( --border-color-subtle, #dddddd ) !important;
+}
+
+/* Select2, behind combobox and tokens inputs. */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple,
+.select2-dropdown,
+.select2-search--dropdown .select2-search__field,
+.select2-container--default .select2-search--inline .select2-search__field {
+	background-color: var( --background-color-base, #ffffff );
+	border-color: var( --border-color-base, #aaaaaa );
+	color: var( --color-base, #202122 );
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered,
+.select2-container .select2-choice > .select2-chosen {
+	color: var( --color-base, #202122 );
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+	background-color: var( --background-color-interactive, #e4e4e4 );
+	border-color: var( --border-color-base, #aaaaaa );
+	color: var( --color-base, #202122 );
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+	background-color: var( --background-color-interactive, #dddddd );
+}
+
+.pf-result-description {
+	color: var( --color-subtle, #888888 );
+}
+
+/* Create new, beside a dropdown in a form. */
+.pf-create-new a {
+	margin-left: 0.5em;
+	padding: 0.1em 0.6em;
+	border: 1px solid var( --border-color-base, #a2a9b1 );
+	border-radius: 2px;
+	background-color: var( --background-color-interactive-subtle, #f8f9fa );
+	white-space: nowrap;
+}

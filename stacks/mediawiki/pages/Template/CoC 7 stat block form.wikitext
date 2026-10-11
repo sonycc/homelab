@@ -1,0 +1,60 @@
+<noinclude>
+Form section for [[Template:CoC 7 stat block]], included by [[Template:Stats form]].
+It saves into the page type's own template: Character, NPC or Creature.
+Argument 1 is the page type, PC, NPC or Creature, and hides the rows that don't apply to it.
+The form tags are in nowiki so Page Forms reads them after this page is transcluded.
+</noinclude><includeonly><nowiki>{{{for template|CoC 7 stat block|multiple|embed in field=</nowiki>{{#switch:{{{1|}}}|PC=Character|#default={{{1|}}}}}<nowiki>[coc7]|label=CoC 7|add button text=Add CoC 7 stats|maximum instances=1}}}</nowiki>
+{| class="formtable"
+{{#switch:{{{1|}}}|Creature=|#default=
+{{!}}-
+! Occupation:
+{{!}} <nowiki>{{{field|occupation|input type=combobox|values from category=Occupations}}}</nowiki> suggests occupation pages, and takes any name
+{{!}}-
+! Age:
+{{!}} <nowiki>{{{field|age|size=3}}}</nowiki>
+}}
+|-
+! STR / CON / SIZ / DEX:
+| <nowiki>{{{field|strength|size=3}}}</nowiki> <nowiki>{{{field|constitution|size=3}}}</nowiki> <nowiki>{{{field|siz|size=3}}}</nowiki> <nowiki>{{{field|dexterity|size=3}}}</nowiki>
+|-
+! INT / POW:
+| <nowiki>{{{field|intelligence|size=3}}}</nowiki> <nowiki>{{{field|power|size=3}}}</nowiki>
+{{#switch:{{{1|}}}|Creature=|#default=
+{{!}}-
+! APP / EDU:
+{{!}} <nowiki>{{{field|appearance|size=3}}}</nowiki> <nowiki>{{{field|education|size=3}}}</nowiki>
+{{!}}-
+! Luck:
+{{!}} <nowiki>{{{field|luck|size=3}}}</nowiki>
+{{!}}-
+! SAN:
+{{!}} <nowiki>{{{field|sanity|size=3}}}</nowiki> current; starts at POW when left empty
+}}
+|-
+! HP / MP / MOV:
+| <nowiki>{{{field|hit_points|size=3}}}</nowiki> <nowiki>{{{field|magic_points|size=3}}}</nowiki> <nowiki>{{{field|move_rate|size=3}}}</nowiki> only to override the worked-out values
+|-
+! Build / Damage Bonus:
+| <nowiki>{{{field|build|size=3}}}</nowiki> <nowiki>{{{field|damage_bonus|size=6}}}</nowiki> only to override the worked-out values
+|-
+! Armor:
+| <nowiki>{{{field|armor}}}</nowiki>
+|-
+! Attacks per round:
+| <nowiki>{{{field|attacks_per_round|size=3}}}</nowiki>
+{{#switch:{{{1|}}}|PC=|#default=
+{{!}}-
+! Sanity loss:
+{{!}} <nowiki>{{{field|sanity_loss|placeholder=1/1D6}}}</nowiki> for creatures that cost SAN to see
+}}
+|-
+! Combat:
+| <nowiki>{{{field|combat|input type=textarea|rows=4|editor=wikieditor}}}</nowiki>
+|-
+! Skills:
+| <nowiki>{{{field|skills|input type=textarea|rows=3}}}</nowiki>
+|-
+! Spells:
+| <nowiki>{{{field|spells|input type=textarea|rows=2}}}</nowiki>
+|}
+<nowiki>{{{end template}}}</nowiki></includeonly>

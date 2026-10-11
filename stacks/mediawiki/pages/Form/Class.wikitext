@@ -1,0 +1,38 @@
+<noinclude>
+Create or edit a class: {{#forminput:form=Class|autocomplete on category=Classes|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|Class}}}
+{| class="formtable"
+|-
+! Image:
+| {{{field|image|uploadable|image preview}}}
+|-
+! Summary:
+| {{{field|summary|input type=textarea|rows=2}}}
+|}
+{{{field|in_systems|holds template}}}
+{{{end template}}}
+
+'''Systems''', one row per system the class exists in. NPCs in that system can have it, and players too when ticked:
+
+{{{for template|Class system|multiple|embed in field=Class[in_systems]|label=System|add button text=Add system}}}
+{| class="formtable"
+|-
+! System:
+| {{{field|system|input type=dropdown|values=E5,E5.5,PF2|mandatory}}}
+|-
+! Playable class:
+| {{{field|playable|input type=checkbox}}} a player can pick it in this system
+|}
+{{{end template}}}
+
+'''Description and lore:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

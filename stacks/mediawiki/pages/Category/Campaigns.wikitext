@@ -1,0 +1,12 @@
+{{#default_form:Campaign}}
+Campaigns. Every page made with [[Form:Campaign]] lands here.
+
+{{#forminput:form=Campaign|autocomplete on category=Campaigns|button text=Create or edit campaign}}
+
+== All campaigns ==
+{{#cargo_query:tables=Campaigns
+|fields=_pageName=Campaign,world=World,system=System,gm=Game master,status=Status,started=Started,ended=Ended
+|order by=started DESC, _pageName
+|format=table
+|limit=500
+}}

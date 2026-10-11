@@ -1,0 +1,13 @@
+-- Every system with stat block layouts.
+-- The key is the tab label and the title of the system's page.
+-- A new system also needs Template:<key> stat block, Template:<key> stat block form,
+-- a line in Template:Stats form, a holding field in Template:Stats fields,
+-- the same field in Template:Character, Template:NPC and Template:Creature, a layout in Module:Stats,
+-- Category:<key> species and Category:<key> playable species,
+-- and the template, form and category <key> species traits.
+return {
+	['E5'] = { family = 'DnD', name = 'Dungeons & Dragons 5th edition (2014)' },
+	['E5.5'] = { family = 'DnD', name = 'Dungeons & Dragons 5th edition (2024)' },
+	['PF2'] = { family = 'PF', name = 'Pathfinder 2nd edition' },
+	['CoC 7'] = { family = 'CoC', name = 'Call of Cthulhu 7th edition' },
+}

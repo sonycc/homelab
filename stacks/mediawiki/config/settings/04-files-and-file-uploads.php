@@ -20,6 +20,12 @@ $wgHooks['UploadVerifyUpload'][] = static function ( $upload, $user, $props, $co
 	return true;
 };
 
+// === Shared uploads ===
+
+// Any Wikimedia Commons file can be used by name, such as [[File:NGC 2683 Spiral galaxy.jpg]], without uploading it.
+// A local upload with the same name wins. Readers' browsers load these images from Wikimedia's servers.
+$wgUseInstantCommons = true;
+
 // === Images ===
 
 // ==== ImageMagick ====

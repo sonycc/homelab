@@ -1,0 +1,15 @@
+{{#default_form:Heritage}}
+PF2 heritages, each belonging to an ancestry, or versatile and open to any. Every page made with [[Form:Heritage]] lands here.
+
+The heritage field in a PF2 stat block picks from these, and each ancestry's PF2 rules page lists its own.
+
+{{#forminput:form=Heritage|autocomplete on category=PF2 Heritages|button text=Create or edit heritage}}
+
+== All heritages ==
+{{#cargo_query:tables=Heritages
+|fields=_pageName=Heritage,ancestry=Ancestry,rarity=Rarity,summary=Summary
+|order by=ancestry, _pageName
+|format=table
+|limit=1000
+}}
+[[Category:Species| PF2 heritages]]

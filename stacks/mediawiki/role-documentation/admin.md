@@ -109,6 +109,8 @@ Cargo turns template parameters into database rows, so index pages are generated
 
 When you change a declaration, use **Recreate data** on the template to rebuild the table. `Template:Character` is the working example.
 
+The templates kept in git need neither button: the wiki builds their tables when it starts, whenever a declaration is new or changed.
+
 ### Page Forms
 
 A form in `Form:` gives players fields instead of wikitext, and writes a template call for them.
@@ -117,19 +119,42 @@ A form in `Form:` gives players fields instead of wikitext, and writes a templat
 - `{{#forminput:form=Character}}` puts a "create or edit" box on any page.
 - `{{#default_form:Character}}` on a category page adds the **Edit with form** tab to its pages.
 - `{{#formredlink:target=...|form=Faction}}` in a template makes a red link open that form instead of the blank editor. `{{#arraymap:}}` applies it to each value of a list field. `Template:Character` does both.
+- `cargo table=...|cargo field=...` suggests values already stored. On a `List` field this needed Cargo 3.7.1 or later, since older versions fail with Error 42P01 on MediaWiki 1.43.2 and later; the wiki runs 3.9.4. The forms here still give list fields `values from category=` or `values=`.
 - `Special:CreateClass` builds a template, its Cargo table, a form and a category in one step. It's the quickest way to start a new page type.
 
 ### Modules
 
-`Module:` pages hold Lua code, run with Scribunto and called from wikitext with `{{#invoke:Name|function}}`. Use them when template logic gets too tangled for ParserFunctions. `Module:Place` is the working example: it reads Cargo with `mw.ext.cargo.query`.
+`Module:` pages hold Lua code, run with Scribunto and called from wikitext with `{{#invoke:Name|function}}`. Use them when template logic gets too tangled for ParserFunctions. `Module:Place` is the working example: it reads Cargo with `mw.ext.cargo.query`. `Module:Stats` builds HTML with `mw.html`.
+
+### Worlds, systems and campaigns
+
+A world is a setting and a system is a ruleset, such as `E5` or `PF2`. Neither belongs to the other: a campaign picks one of each. Characters take their world and system from their campaign. NPCs, factions and places belong to a world. Creatures can belong to a world or to none.
+
+Systems exist only in git, because each one has its own stat block layout. `Module:Systems` lists them with their family, such as `DnD` for `E5` and `E5.5`. After a deploy that adds a system, create its page, titled with its key, holding just `{{System}}`. House rules can go below it.
 
 ### Places
 
-Places nest. Each one names its parent in **Located in**, and `Module:Place` builds the path, the places directly below and every NPC and faction anywhere below.
+Places nest. Each one names its parent in **Located in**: another place, or a world at the top. `Module:Place` builds the path, the places directly below and everything anywhere below. A world's page lists its top-level places, NPCs, factions, creatures, campaigns and the systems they're played in.
 
-The root is `Cosmos`, the only place without a parent. The form requires a parent, so the root is a page created by hand holding just `{{Place}}`, and edited in source. `Category:Places` lists every place without a parent under **Top level**; anything there besides the root is missing its parent.
+`Category:Worlds` sits inside `Category:Places`, so worlds are offered wherever a place is picked. `Category:Places` lists places under **Not in any world** whose chain stops before reaching a world.
 
-To rename a place, root included, move it and keep the redirect. Pages naming the old title follow the redirect. `Special:ReplaceText` can tidy the old name out of **Located in** afterwards.
+To rename a place or a world, move it and keep the redirect. Pages naming the old title follow the redirect. `Special:ReplaceText` can tidy the old name out of **Located in** afterwards.
+
+### Stat blocks
+
+Characters, NPCs and creatures carry stat blocks for any number of systems, shown as tabs under the infobox, in the right-hand column, so the middle of the page is all lore: family first, then edition, such as **DnD › E5**. The campaign's system opens first. Each system has its own layout, fields and Cargo table, such as `E5_stat_blocks`, so queries can join it with the page's own table on `_pageName`.
+
+| Piece | Does |
+| --- | --- |
+| `Template:<system> stat block` | Declares and stores the system's fields, then hands them to `Module:Stats` |
+| `Template:<system> stat block form` | That system's section of the form, with its form tags in `<nowiki>` so they survive being transcluded. Its argument, `PC`, `NPC` or `Creature`, hides the rows that don't apply, such as challenge rating on a PC or species on a creature |
+| `Template:Stats fields` | The holding fields `e5`, `e5_5`, `pf2` and `coc7`, one per system, since Page Forms writes only one template into each. Each form includes it inside its Character, NPC or Creature block, and the stat sections show there |
+| `Template:Stats form` | Every system's section. Each form includes it once, after the free text, with its page type: `{{Stats form|NPC}}`. Each section saves into that type's template |
+| `Template:Character`, `NPC`, `Creature` | Take the four stat fields and show them as tabs under the infobox, using TabberNeue |
+| `Template:Stats` | Old: the stat tabs at the bottom of pages saved before they moved. Lists them in `Category:Pages with old stat blocks` |
+| `Module:Stats` | One layout per system, plus derived values such as ability modifiers, XP and proficiency bonus, or CoC half and fifth values |
+
+Adding a system takes an entry in `Module:Systems`, a layout function in `Module:Stats`, the two templates above, a line in `Template:Stats form`, a holding field in `Template:Stats fields`, the same field in `Template:Character`, `Template:NPC` and `Template:Creature`, the pages `Category:<system> species` and `Category:<system> playable species`, and a template, form and category named `<system> species traits` for its species rules pages. A system with classes also needs `Category:<system> classes`, `Category:<system> playable classes`, a template, form and category named `<system> class features`, and its key in the System dropdown of `Form:Class`. Then deploy, which builds the new table, and create the system's page.
 
 ### Interface messages
 
@@ -139,31 +164,34 @@ Some interface wording is set in the wiki's config files, and the config always 
 
 These pages are stored in the repository under `stacks/mediawiki/pages/` and imported on every deploy:
 
-| Page | File |
-| --- | --- |
-| `Category:Campaigns` | `pages/Category/Campaigns.wikitext` |
-| `Category:Characters` | `pages/Category/Characters.wikitext` |
-| `Category:Factions` | `pages/Category/Factions.wikitext` |
-| `Category:NPCs` | `pages/Category/NPCs.wikitext` |
-| `Category:Places` | `pages/Category/Places.wikitext` |
-| `Form:Campaign` | `pages/Form/Campaign.wikitext` |
-| `Form:Character` | `pages/Form/Character.wikitext` |
-| `Form:Faction` | `pages/Form/Faction.wikitext` |
-| `Form:NPC` | `pages/Form/NPC.wikitext` |
-| `Form:Place` | `pages/Form/Place.wikitext` |
-| `Module:Place` | `pages/Module/Place.wikitext` |
-| `Template:Campaign` | `pages/Template/Campaign.wikitext` |
-| `Template:Character` | `pages/Template/Character.wikitext` |
-| `Template:Faction` | `pages/Template/Faction.wikitext` |
-| `Template:NPC` | `pages/Template/NPC.wikitext` |
-| `Template:Place` | `pages/Template/Place.wikitext` |
-| `Template:License` | `pages/Template/License.wikitext` |
+Each file `pages/<Namespace>/<Title>.wikitext` becomes the page `<Namespace>:<Title>`. Subpages can't be stored this way, since a title's `/` can't be part of a file name.
 
-The file always wins: an edit on the wiki is overwritten next time. Change the file and redeploy instead. Imports are never approved automatically, so after a change to a `Category:` page, approve it at `Special:ApprovedRevs`. Templates and forms aren't approvable, so they go live as soon as they're imported.
+| Page type | Category | Form | Template | Module |
+| --- | --- | --- | --- | --- |
+| Player profile, on `User:Name` | `Players` | `Player` | `Player` | `Campaign` |
+| Player character | `Characters` | `Character` | `Character` | `Campaign` |
+| NPC | `NPCs` | `NPC` | `NPC` | |
+| Creature | `Creatures` | `Creature` | `Creature` | |
+| Species | `Species` | `Species` | `Species`, `Species system` | `Species` |
+| Species rules, such as `Human (E5)` | `<system> species traits` | `<system> species traits` | `<system> species traits` | `Species` |
+| Class, in E5, E5.5 and PF2 | `Classes` | `Class` | `Class`, `Class system` | `Species` |
+| Class rules, such as `Wizard (E5)` | `<system> class features` | `<system> class features` | `<system> class features` | `Species` |
+| PF2 heritage, such as `Ancient Elf` | `PF2 Heritages` | `Heritage` | `Heritage` | `Species` |
+| CoC 7 occupation | `Occupations` | `Occupation` | `Occupation` | |
+| Place | `Places` | `Place` | `Place` | `Place` |
+| World | `Worlds` | `World` | `World` | `Place` |
+| Faction | `Factions` | `Faction` | `Faction` | |
+| Campaign | `Campaigns` | `Campaign` | `Campaign` | `Campaign` |
+| System | `Systems` | | `System` | `Campaign`, `Systems` |
+| Stat blocks | | | `Stats fields`, `Stats form`, old `Stats`, and `<system> stat block` and `<system> stat block form` for `E5`, `E5.5`, `PF2` and `CoC 7` | `Stats`, `Systems` |
+
+`Template:License` is kept in git too.
+
+The file always wins: an edit on the wiki is overwritten next time. Change the file and redeploy instead. If someone does edit one on the wiki, the admins' Discord channel gets the diff, so the change can be copied into the file first. The wiki approves the imported `Category:` pages itself when it starts, since the file is what was reviewed. Templates and forms aren't approvable, so they go live as soon as they're imported.
 
 ## Approval settings
 
-Approval applies to normal articles, `Category:`, `File:`, `Help:` and the project namespace. User pages and templates are never approved. Edits by Loremasters and admins are approved automatically, including new pages. A page with no approved revision shows readers a blank page with the notice "This page is awaiting approval and is not considered lore."
+Approval applies to normal articles, `Category:`, `File:`, `Help:` and the project namespace. User pages and templates are never approved. Edits by Loremasters and admins are approved automatically, including new pages. Every other new page, and the first unapproved edit after an approved revision, is posted in the admins' Discord channel. Further edits to a page that's already waiting stay quiet. A page with no approved revision shows readers a blank page with the notice "This page is awaiting approval and is not considered lore."
 
 The Main Page is approvable too, and it's the one page visitors who aren't logged in can read. Links on it still need a login.
 

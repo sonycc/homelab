@@ -1,0 +1,146 @@
+<noinclude>
+Pathfinder 2nd edition rules for one species, on a page titled after it, such as Human (PF2).
+The species' own page links here from its Systems box. Create pages from that link, or with [[Form:PF2 species traits]].
+
+{{#cargo_declare:_table=PF2_species_traits
+|species=Page
+|hit_points=Integer
+|size=String
+|speed=String
+|boosts=String
+|flaw=String
+|languages=String
+|traits=String
+|abilities=Wikitext
+|heritages=Wikitext
+}}
+
+<templatedata>
+{
+	"description": "Pathfinder 2nd edition rules for one species, on a page titled after it, such as Human (PF2). Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"hit_points": {
+			"label": "Hit points",
+			"description": "Ancestry hit points",
+			"type": "number"
+		},
+		"size": {
+			"label": "Size",
+			"description": "Size category",
+			"type": "line"
+		},
+		"speed": {
+			"label": "Speed",
+			"description": "Such as 25 feet",
+			"type": "line"
+		},
+		"boosts": {
+			"label": "Attribute boosts",
+			"description": "Such as Constitution, Wisdom, free",
+			"type": "line"
+		},
+		"flaw": {
+			"label": "Attribute flaw",
+			"description": "Such as Charisma",
+			"type": "line"
+		},
+		"languages": {
+			"label": "Languages",
+			"description": "Languages it starts with",
+			"type": "line"
+		},
+		"traits": {
+			"label": "Traits",
+			"description": "Such as Dwarf, Humanoid",
+			"type": "line"
+		},
+		"abilities": {
+			"label": "Special abilities",
+			"description": "Such as darkvision. Shown as a section",
+			"type": "content"
+		},
+		"heritages": {
+			"label": "Heritages",
+			"description": "Its heritages. Shown as a section",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"hit_points",
+		"size",
+		"speed",
+		"boosts",
+		"flaw",
+		"languages",
+		"traits",
+		"abilities",
+		"heritages"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=PF2_species_traits
+|species={{#invoke:Species|hub}}
+|hit_points={{{hit_points|}}}
+|size={{{size|}}}
+|speed={{{speed|}}}
+|boosts={{{boosts|}}}
+|flaw={{{flaw|}}}
+|languages={{{languages|}}}
+|traits={{{traits|}}}
+|abilities={{{abilities|}}}
+|heritages={{{heritages|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{#invoke:Species|hub}} in [[PF2]]
+|-
+! Species
+| [[{{#invoke:Species|hub}}]]
+{{#if:{{{hit_points|}}}|
+{{!}}-
+! Hit points
+{{!}} {{{hit_points|}}}
+}}
+{{#if:{{{size|}}}|
+{{!}}-
+! Size
+{{!}} {{{size|}}}
+}}
+{{#if:{{{speed|}}}|
+{{!}}-
+! Speed
+{{!}} {{{speed|}}}
+}}
+{{#if:{{{boosts|}}}|
+{{!}}-
+! Attribute boosts
+{{!}} {{{boosts|}}}
+}}
+{{#if:{{{flaw|}}}|
+{{!}}-
+! Attribute flaw
+{{!}} {{{flaw|}}}
+}}
+{{#if:{{{languages|}}}|
+{{!}}-
+! Languages
+{{!}} {{{languages|}}}
+}}
+{{#if:{{{traits|}}}|
+{{!}}-
+! Traits
+{{!}} {{{traits|}}}
+}}
+|}
+{{#if:{{{abilities|}}}|
+== Special abilities ==
+{{{abilities}}}
+}}
+{{#if:{{{heritages|}}}{{#invoke:Species|heritages}}|
+== Heritages ==
+{{#invoke:Species|heritages}}
+{{{heritages|}}}
+}}
+[[Category:PF2 species traits]]
+</includeonly>

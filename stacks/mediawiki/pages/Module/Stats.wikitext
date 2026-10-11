@@ -1,0 +1,470 @@
+-- Stat blocks, one layout per system, shown as family › edition tabs.
+-- Each Template:<system> stat block calls block. Template:Stats calls tabs on all of them.
+local systems = mw.loadData('Module:Systems')
+
+local p = {}
+
+-- Private-use characters delimit each block inside Template:Stats's argument.
+local OPEN, MID, CLOSE = '\238\128\128', '\238\128\129', '\238\128\130'
+
+local function val(args, key)
+	local v = args[key] and mw.text.trim(args[key])
+	if v == '' then return nil end
+	return v
+end
+
+local function num(args, key)
+	return tonumber(val(args, key) or '')
+end
+
+local function signed(n)
+	return string.format('%+d', n)
+end
+
+local function list(v)
+	local out = {}
+	for item in mw.text.gsplit(v or '', ',', true) do
+		item = mw.text.trim(item)
+		if item ~= '' then table.insert(out, item) end
+	end
+	return out
+end
+
+local function newBlock()
+	return mw.html.create('div')
+		:css('border-top', '3px solid')
+		:css('border-bottom', '3px solid')
+		:css('padding', '0.3em 0.6em')
+		:css('margin', '0.5em 0')
+		:css('max-width', '42em')
+end
+
+-- Every visible piece of a block goes through put, which draws a pending divider first,
+-- so dividers only ever sit between sections that have something in them.
+local function put(root, name)
+	if root.ruleDue and root.filled then
+		root:tag('hr'):css('margin', '0.4em 0')
+	end
+	root.ruleDue = false
+	root.filled = true
+	return root:tag(name)
+end
+
+local function rule(root)
+	root.ruleDue = true
+end
+
+-- Labelled one-liners. Items with no value are skipped.
+local function lines(root, items)
+	for _, item in ipairs(items) do
+		if item[2] then
+			put(root, 'div'):wikitext("'''" .. item[1] .. "''' " .. item[2])
+		end
+	end
+end
+
+local function section(root, title, text)
+	if not text then return end
+	if title then
+		put(root, 'div')
+			:css('font-weight', 'bold')
+			:css('font-size', '110%')
+			:css('border-bottom', '1px solid')
+			:css('margin-top', '0.6em')
+			:wikitext(title)
+	end
+	put(root, 'div'):newline():wikitext(text):newline()
+end
+
+-- A blank first header makes the first cell of each row a row header.
+local function grid(root, header, rows)
+	local tbl = put(root, 'table'):addClass('wikitable'):css('text-align', 'center'):css('margin', '0.4em 0')
+	local tr = tbl:tag('tr')
+	for _, cell in ipairs(header) do tr:tag('th'):wikitext(cell) end
+	for _, row in ipairs(rows) do
+		tr = tbl:tag('tr')
+		for i, cell in ipairs(row) do
+			tr:tag((i == 1 and header[1] == '') and 'th' or 'td'):wikitext(cell)
+		end
+	end
+end
+
+local function italicLine(root, text)
+	if text then put(root, 'div'):css('font-style', 'italic'):wikitext(text) end
+end
+
+local function join(parts, sep)
+	local out = {}
+	for _, part in ipairs(parts) do
+		if part then table.insert(out, part) end
+	end
+	if #out == 0 then return nil end
+	return table.concat(out, sep)
+end
+
+-- === D&D 5th edition, 2014 and 2024 ===
+
+local ABILITIES = {
+	{ 'strength', 'Str' }, { 'dexterity', 'Dex' }, { 'constitution', 'Con' },
+	{ 'intelligence', 'Int' }, { 'wisdom', 'Wis' }, { 'charisma', 'Cha' },
+}
+
+local CR_XP = {
+	['0'] = 10, ['1/8'] = 25, ['1/4'] = 50, ['1/2'] = 100,
+	['1'] = 200, ['2'] = 450, ['3'] = 700, ['4'] = 1100, ['5'] = 1800,
+	['6'] = 2300, ['7'] = 2900, ['8'] = 3900, ['9'] = 5000, ['10'] = 5900,
+	['11'] = 7200, ['12'] = 8400, ['13'] = 10000, ['14'] = 11500, ['15'] = 13000,
+	['16'] = 15000, ['17'] = 18000, ['18'] = 20000, ['19'] = 22000, ['20'] = 25000,
+	['21'] = 33000, ['22'] = 41000, ['23'] = 50000, ['24'] = 62000, ['25'] = 75000,
+	['26'] = 90000, ['27'] = 105000, ['28'] = 120000, ['29'] = 135000, ['30'] = 155000,
+}
+
+local function abilityMod(score)
+	return math.floor((score - 10) / 2)
+end
+
+-- From the override, else from the challenge rating, else from a character's level.
+local function proficiency(args)
+	local pb = num(args, 'proficiency_bonus')
+	if pb then return pb end
+	local cr = val(args, 'challenge')
+	local n = cr and (tonumber(cr) or 0) or num(args, 'level')
+	if not n then return nil end
+	if n < 5 then return 2 end
+	return 2 + math.ceil((n - 4) / 4)
+end
+
+local function xp(cr)
+	local amount = cr and CR_XP[cr]
+	return amount and mw.language.getContentLanguage():formatNum(amount)
+end
+
+-- A character's species, class and level, then the creature line.
+-- Links a species or class to its rules page for the system, such as Human (E5), labelled Human.
+local function rulesLink(name, system)
+	return name and '[[' .. name .. ' (' .. system .. ')|' .. name .. ']]'
+end
+
+-- Links a heritage or occupation to its own page, which opens its form while that doesn't exist yet.
+-- #formredlink takes only named arguments, passed as key=value strings.
+local function pageLink(name, form)
+	return name and mw.getCurrentFrame():callParserFunction('#formredlink', { 'target=' .. name, 'form=' .. form })
+end
+
+local function header5e(root, args, system)
+	local level = val(args, 'level')
+	local species = val(args, 'species')
+	local who = join({ rulesLink(species, system), rulesLink(val(args, 'class'), system), level and 'level ' .. level }, ', ')
+	if who then put(root, 'div'):css('font-weight', 'bold'):wikitext(who) end
+	italicLine(root, join({
+		join({ val(args, 'size'), val(args, 'creature_type') }, ' '),
+		val(args, 'alignment'),
+	}, ', '))
+	rule(root)
+end
+
+local function actions5e(root, args)
+	section(root, nil, val(args, 'traits'))
+	section(root, 'Actions', val(args, 'actions'))
+	section(root, 'Bonus Actions', val(args, 'bonus_actions'))
+	section(root, 'Reactions', val(args, 'reactions'))
+	section(root, 'Legendary Actions', val(args, 'legendary_actions'))
+end
+
+local function e5(args, system)
+	local root = newBlock()
+	header5e(root, args, system)
+
+	local ac, note = val(args, 'armor_class'), val(args, 'armor_note')
+	local hp, dice = val(args, 'hit_points'), val(args, 'hit_dice')
+	lines(root, {
+		{ 'Armor Class', ac and (note and ac .. ' (' .. note .. ')' or ac) },
+		{ 'Hit Points', hp and (dice and hp .. ' (' .. dice .. ')' or hp) },
+		{ 'Speed', val(args, 'speed') },
+	})
+	rule(root)
+
+	local header, row = {}, {}
+	for _, ability in ipairs(ABILITIES) do
+		local score = num(args, ability[1])
+		table.insert(header, mw.ustring.upper(ability[2]))
+		table.insert(row, score and score .. ' (' .. signed(abilityMod(score)) .. ')' or '—')
+	end
+	grid(root, header, { row })
+	rule(root)
+
+	local cr = val(args, 'challenge')
+	local pb = proficiency(args)
+	lines(root, {
+		{ 'Saving Throws', val(args, 'saving_throws') },
+		{ 'Skills', val(args, 'skills') },
+		{ 'Damage Vulnerabilities', val(args, 'damage_vulnerabilities') },
+		{ 'Damage Resistances', val(args, 'damage_resistances') },
+		{ 'Damage Immunities', val(args, 'damage_immunities') },
+		{ 'Condition Immunities', val(args, 'condition_immunities') },
+		{ 'Senses', val(args, 'senses') },
+		{ 'Languages', val(args, 'languages') },
+		{ 'Challenge', cr and (xp(cr) and cr .. ' (' .. xp(cr) .. ' XP)' or cr) },
+		{ 'Proficiency Bonus', pb and signed(pb) },
+	})
+	actions5e(root, args)
+	return root
+end
+
+local function e55(args, system)
+	local root = newBlock()
+	header5e(root, args, system)
+
+	local initiative = num(args, 'initiative')
+	local dex = num(args, 'dexterity')
+	if not initiative and dex then initiative = abilityMod(dex) end
+	local hp, dice = val(args, 'hit_points'), val(args, 'hit_dice')
+	lines(root, {
+		{ 'AC', val(args, 'armor_class') },
+		{ 'Initiative', initiative and signed(initiative) .. ' (' .. (10 + initiative) .. ')' },
+		{ 'HP', hp and (dice and hp .. ' (' .. dice .. ')' or hp) },
+		{ 'Speed', val(args, 'speed') },
+	})
+	rule(root)
+
+	local pb = proficiency(args)
+	local proficient = {}
+	for _, ability in ipairs(list(args.save_proficiencies)) do proficient[ability] = true end
+	local rows = {}
+	for _, ability in ipairs(ABILITIES) do
+		local score = num(args, ability[1])
+		local m = score and abilityMod(score)
+		local save = m and (proficient[ability[2]] and pb and m + pb or m)
+		table.insert(rows, {
+			ability[2],
+			score or '—',
+			m and signed(m) or '—',
+			save and signed(save) or '—',
+		})
+	end
+	grid(root, { '', 'Score', 'Mod', 'Save' }, rows)
+	rule(root)
+
+	local cr = val(args, 'challenge')
+	lines(root, {
+		{ 'Skills', val(args, 'skills') },
+		{ 'Vulnerabilities', val(args, 'vulnerabilities') },
+		{ 'Resistances', val(args, 'resistances') },
+		{ 'Immunities', val(args, 'immunities') },
+		{ 'Gear', val(args, 'gear') },
+		{ 'Senses', val(args, 'senses') },
+		{ 'Languages', val(args, 'languages') },
+		{ 'Proficiency Bonus', not cr and pb and signed(pb) },
+		{ 'CR', cr and join({ cr, '(' .. join({ xp(cr) and 'XP ' .. xp(cr), pb and 'PB ' .. signed(pb) }, '; ') .. ')' }, ' ') },
+	})
+	actions5e(root, args)
+	return root
+end
+
+-- === Pathfinder 2nd edition ===
+
+local function tag(root, text)
+	root:tag('span')
+		:css('display', 'inline-block')
+		:css('border', '1px solid')
+		:css('padding', '0 0.35em')
+		:css('margin', '0 0.25em 0.25em 0')
+		:css('font-size', '85%')
+		:css('text-transform', 'uppercase')
+		:wikitext(text)
+end
+
+local function pf2(args, system)
+	local root = newBlock()
+	local level = val(args, 'level')
+	if level then
+		put(root, 'div'):css('font-weight', 'bold'):css('text-align', 'right'):wikitext('Level ' .. level)
+	end
+	local ancestry = val(args, 'ancestry')
+	italicLine(root, join({ rulesLink(ancestry, system), pageLink(val(args, 'heritage'), 'Heritage'), rulesLink(val(args, 'class'), system) }, ', '))
+
+	local labels = {}
+	local rarity = val(args, 'rarity')
+	if rarity and rarity ~= 'Common' then table.insert(labels, rarity) end
+	if val(args, 'size') then table.insert(labels, val(args, 'size')) end
+	for _, item in ipairs(list(args.traits)) do table.insert(labels, item) end
+	if #labels > 0 then
+		local tags = put(root, 'div')
+		for _, label in ipairs(labels) do tag(tags, label) end
+	end
+
+	local perception = num(args, 'perception')
+	local attributes = {}
+	for _, ability in ipairs(ABILITIES) do
+		local m = num(args, ability[1])
+		if m then table.insert(attributes, "'''" .. ability[2] .. "''' " .. signed(m)) end
+	end
+	lines(root, {
+		{ 'Perception', join({ perception and signed(perception), val(args, 'senses') }, '; ') },
+		{ 'Languages', val(args, 'languages') },
+		{ 'Skills', val(args, 'skills') },
+	})
+	if #attributes > 0 then put(root, 'div'):wikitext(table.concat(attributes, ', ')) end
+	lines(root, { { 'Items', val(args, 'items') } })
+	section(root, nil, val(args, 'automatic_abilities'))
+	rule(root)
+
+	local function save(key, label)
+		local n = num(args, key)
+		return n and "'''" .. label .. "''' " .. signed(n)
+	end
+	local ac = val(args, 'armor_class')
+	local hp = val(args, 'hit_points')
+	for _, line in ipairs({
+		join({
+			ac and "'''AC''' " .. ac,
+			save('fortitude', 'Fort'),
+			save('reflex', 'Ref'),
+			save('will', 'Will'),
+		}, '; ') or false,
+		join({
+			hp and "'''HP''' " .. hp,
+			val(args, 'immunities') and "'''Immunities''' " .. val(args, 'immunities'),
+			val(args, 'weaknesses') and "'''Weaknesses''' " .. val(args, 'weaknesses'),
+			val(args, 'resistances') and "'''Resistances''' " .. val(args, 'resistances'),
+		}, '; ') or false,
+	}) do
+		if line then put(root, 'div'):wikitext(line) end
+	end
+	section(root, nil, val(args, 'defensive_abilities'))
+	rule(root)
+
+	lines(root, { { 'Speed', val(args, 'speed') } })
+	section(root, nil, val(args, 'actions'))
+	section(root, 'Spells', val(args, 'spells'))
+	return root
+end
+
+-- === Call of Cthulhu 7th edition ===
+
+local CHARACTERISTICS = {
+	{ 'strength', 'STR' }, { 'constitution', 'CON' }, { 'siz', 'SIZ' }, { 'dexterity', 'DEX' },
+	{ 'appearance', 'APP' }, { 'intelligence', 'INT' }, { 'power', 'POW' }, { 'education', 'EDU' },
+}
+
+-- Build and damage bonus from STR + SIZ.
+local function cocBuild(total)
+	if total < 65 then return -2, '−2' end
+	if total < 85 then return -1, '−1' end
+	if total < 125 then return 0, 'None' end
+	if total < 165 then return 1, '+1D4' end
+	if total < 205 then return 2, '+1D6' end
+	local steps = math.floor((total - 205) / 80) + 1
+	return 2 + steps, '+' .. (steps + 1) .. 'D6'
+end
+
+local function cocMove(str, dex, siz, age)
+	local mov = 8
+	if dex < siz and str < siz then
+		mov = 7
+	elseif dex > siz and str > siz then
+		mov = 9
+	end
+	if age and age >= 40 then
+		mov = mov - math.min(5, math.floor((age - 30) / 10))
+	end
+	return mov
+end
+
+local function coc7(args)
+	local root = newBlock()
+	italicLine(root, join({
+		pageLink(val(args, 'occupation'), 'Occupation'),
+		val(args, 'age') and 'age ' .. val(args, 'age'),
+	}, ', '))
+
+	local header, row = {}, {}
+	for _, c in ipairs(CHARACTERISTICS) do
+		local v = num(args, c[1])
+		table.insert(header, c[2])
+		table.insert(row, v and v .. ' (' .. math.floor(v / 2) .. '/' .. math.floor(v / 5) .. ')' or '—')
+	end
+	grid(root, header, { row })
+
+	local str, con, siz, dex, pow = num(args, 'strength'), num(args, 'constitution'), num(args, 'siz'), num(args, 'dexterity'), num(args, 'power')
+	local build, damage
+	if str and siz then build, damage = cocBuild(str + siz) end
+	lines(root, {
+		{ 'HP', val(args, 'hit_points') or (con and siz and math.floor((con + siz) / 10)) },
+		{ 'MP', val(args, 'magic_points') or (pow and math.floor(pow / 5)) },
+		{ 'SAN', val(args, 'sanity') or pow },
+		{ 'Luck', val(args, 'luck') },
+		{ 'MOV', val(args, 'move_rate') or (str and dex and siz and cocMove(str, dex, siz, num(args, 'age'))) },
+		{ 'Build', val(args, 'build') or build },
+		{ 'Damage Bonus', val(args, 'damage_bonus') or damage },
+		{ 'Armor', val(args, 'armor') },
+		{ 'Attacks per round', val(args, 'attacks_per_round') },
+		{ 'Sanity loss', val(args, 'sanity_loss') },
+	})
+	section(root, 'Combat', val(args, 'combat'))
+	section(root, 'Skills', val(args, 'skills'))
+	section(root, 'Spells', val(args, 'spells'))
+	return root
+end
+
+local LAYOUTS = { ['E5'] = e5, ['E5.5'] = e55, ['PF2'] = pf2, ['CoC 7'] = coc7 }
+
+-- Called by Template:<system> stat block with its system; reads that template's arguments.
+function p.block(frame)
+	local system = frame.args.system
+	local layout = LAYOUTS[system]
+	if not layout then
+		return '<strong class="error">No stat block layout for system "' .. tostring(system) .. '".</strong>'
+	end
+	return OPEN .. system .. MID .. tostring(layout(frame:getParent().args, system)) .. CLOSE
+end
+
+-- The system of the page's campaign, read from its own text, such as |campaign= in {{Character}} or {{NPC}}.
+-- Read from the text rather than Cargo, which hasn't stored this page yet while it is being saved.
+local function campaignSystem()
+	local content = mw.title.getCurrentTitle():getContent() or ''
+	local campaign = content:match('\n%s*|%s*campaign%s*=%s*([^\n|}]-)%s*[\n|}]')
+	local title = campaign and campaign ~= '' and mw.title.new(campaign)
+	if not title then return nil end
+	for _, row in ipairs(mw.ext.cargo.query('Campaigns', '_pageName=page,system=system', { limit = 5000 })) do
+		if row.page == title.prefixedText then
+			return row.system and mw.text.trim(row.system) or nil
+		end
+	end
+end
+
+-- Groups the blocks in argument 1 by family into nested tabs.
+-- The campaign's system comes first, so its tabs open; the rest are alphabetical.
+function p.tabs(frame)
+	local families, order = {}, {}
+	for system, body in (frame.args[1] or ''):gmatch(OPEN .. '(.-)' .. MID .. '(.-)' .. CLOSE) do
+		local family = systems[system] and systems[system].family or system
+		if not families[family] then
+			families[family] = {}
+			table.insert(order, family)
+		end
+		table.insert(families[family], { system = system, body = body })
+	end
+	if #order == 0 then return '' end
+
+	local first = campaignSystem()
+	local firstFamily = first and (systems[first] and systems[first].family or first)
+	local function before(a, b, lead)
+		if (a == lead) ~= (b == lead) then return a == lead end
+		return a < b
+	end
+	table.sort(order, function(a, b) return before(a, b, firstFamily) end)
+	local outer = {}
+	for _, family in ipairs(order) do
+		local blocks = families[family]
+		table.sort(blocks, function(a, b) return before(a.system, b.system, first) end)
+		local inner = {}
+		for _, block in ipairs(blocks) do
+			table.insert(inner, block.system .. '=\n' .. block.body)
+		end
+		table.insert(outer, family .. '=\n' .. frame:extensionTag('tabber', '|-|' .. table.concat(inner, '\n|-|')))
+	end
+	return frame:extensionTag('tabber', '|-|' .. table.concat(outer, '\n|-|'))
+end
+
+return p

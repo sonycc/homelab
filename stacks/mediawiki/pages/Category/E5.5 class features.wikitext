@@ -1,0 +1,13 @@
+{{#default_form:E5.5 class features}}
+D&D 5th edition (2024) rules for each class, one page per class, such as Wizard (E5.5). Each class' page links to its own.
+
+{{#forminput:form=E5.5 class features|button text=Create or edit E5.5 class rules}}
+
+== All E5.5 class rules ==
+{{#cargo_query:tables=E5_5_class_features
+|fields=_pageName=Page,class=Class,primary_ability=Primary ability,hit_die=Hit point die,saving_throws=Saving throw proficiencies,skills=Skill proficiencies,weapons=Weapon proficiencies,tools=Tool proficiencies,armor=Armor training,weapon_mastery=Weapon Mastery,spellcasting_ability=Spellcasting ability,subclass_level=Subclass level
+|order by=class
+|format=table
+|limit=500
+}}
+[[Category:Classes| E5.5 rules]]

@@ -1,0 +1,95 @@
+<noinclude>
+Form section for [[Template:E5 stat block]], included by [[Template:Stats form]].
+It saves into the page type's own template: Character, NPC or Creature.
+Argument 1 is the page type, PC, NPC or Creature, and hides the rows that don't apply to it.
+The form tags are in nowiki so Page Forms reads them after this page is transcluded.
+</noinclude><includeonly><nowiki>{{{for template|E5 stat block|multiple|embed in field=</nowiki>{{#switch:{{{1|}}}|PC=Character|#default={{{1|}}}}}<nowiki>[e5]|label=E5|add button text=Add E5 stats|maximum instances=1}}}</nowiki>
+{| class="formtable"
+{{#switch:{{{1|}}}|Creature=|#default=
+{{!}}-
+! Race:
+{{!}} {{#ifeq:{{{1|}}}|PC|<nowiki>{{{field|species|input type=combobox|values from category=E5 playable species|existing values only}}}</nowiki>|<nowiki>{{{field|species|input type=combobox|values from category=E5 species|existing values only}}}</nowiki>}} <span class="pf-create-new">[[Special:FormStart/Species|Create new]]</span>
+{{!}}-
+! Class:
+{{!}} {{#ifeq:{{{1|}}}|PC|<nowiki>{{{field|class|input type=combobox|values from category=E5 playable classes|existing values only}}}</nowiki>|<nowiki>{{{field|class|input type=combobox|values from category=E5 classes|existing values only}}}</nowiki>}} <span class="pf-create-new">[[Special:FormStart/Class|Create new]]</span>
+{{!}}-
+! Level:
+{{!}} <nowiki>{{{field|level|size=3|default=1}}}</nowiki> sets the proficiency bonus when there's no challenge rating
+}}
+|-
+! Size:
+| <nowiki>{{{field|size|input type=dropdown|values=Tiny,Small,Medium,Large,Huge,Gargantuan|default=Medium}}}</nowiki>
+{{#switch:{{{1|}}}|PC=|#default=
+{{!}}-
+! Type:
+{{!}} <nowiki>{{{field|creature_type|input type=combobox|cargo table=E5_stat_blocks|cargo field=creature_type}}}</nowiki>
+{{!}}-
+! Alignment:
+{{!}} <nowiki>{{{field|alignment|input type=combobox|cargo table=E5_stat_blocks|cargo field=alignment|default=Neutral}}}</nowiki>
+}}
+|-
+! Armor Class:
+| <nowiki>{{{field|armor_class|size=4}}}</nowiki> <nowiki>{{{field|armor_note|placeholder=natural armor}}}</nowiki>
+|-
+! Hit Points:
+| <nowiki>{{{field|hit_points|size=4}}}</nowiki> <nowiki>{{{field|hit_dice|placeholder=5d8 + 5}}}</nowiki>
+|-
+! Speed:
+| <nowiki>{{{field|speed|placeholder=30 ft., fly 60 ft.}}}</nowiki>
+|-
+! Str / Dex / Con:
+| <nowiki>{{{field|strength|size=3}}}</nowiki> <nowiki>{{{field|dexterity|size=3}}}</nowiki> <nowiki>{{{field|constitution|size=3}}}</nowiki>
+|-
+! Int / Wis / Cha:
+| <nowiki>{{{field|intelligence|size=3}}}</nowiki> <nowiki>{{{field|wisdom|size=3}}}</nowiki> <nowiki>{{{field|charisma|size=3}}}</nowiki>
+|-
+! Saving Throws:
+| <nowiki>{{{field|saving_throws|placeholder=Dex +5, Wis +3}}}</nowiki>
+|-
+! Skills:
+| <nowiki>{{{field|skills|placeholder=Perception +5, Stealth +7}}}</nowiki>
+|-
+! Damage Vulnerabilities:
+| <nowiki>{{{field|damage_vulnerabilities}}}</nowiki>
+|-
+! Damage Resistances:
+| <nowiki>{{{field|damage_resistances}}}</nowiki>
+|-
+! Damage Immunities:
+| <nowiki>{{{field|damage_immunities}}}</nowiki>
+|-
+! Condition Immunities:
+| <nowiki>{{{field|condition_immunities}}}</nowiki>
+|-
+! Senses:
+| <nowiki>{{{field|senses|placeholder=darkvision 60 ft., passive Perception 15}}}</nowiki>
+|-
+! Languages:
+| <nowiki>{{{field|languages}}}</nowiki>
+{{#switch:{{{1|}}}|PC=|#default=
+{{!}}-
+! Challenge:
+{{!}} <nowiki>{{{field|challenge|input type=dropdown|values=0,1/8,1/4,1/2,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30}}}</nowiki>
+}}
+|-
+! Proficiency Bonus:
+| <nowiki>{{{field|proficiency_bonus|size=3}}}</nowiki> only to override the worked-out value
+|-
+! Traits:
+| <nowiki>{{{field|traits|input type=textarea|rows=4|editor=wikieditor}}}</nowiki>
+|-
+! Actions:
+| <nowiki>{{{field|actions|input type=textarea|rows=4|editor=wikieditor}}}</nowiki>
+|-
+! Bonus Actions:
+| <nowiki>{{{field|bonus_actions|input type=textarea|rows=2}}}</nowiki>
+|-
+! Reactions:
+| <nowiki>{{{field|reactions|input type=textarea|rows=2}}}</nowiki>
+{{#switch:{{{1|}}}|PC|NPC=|#default=
+{{!}}-
+! Legendary Actions:
+{{!}} <nowiki>{{{field|legendary_actions|input type=textarea|rows=2}}}</nowiki>
+}}
+|}
+<nowiki>{{{end template}}}</nowiki></includeonly>

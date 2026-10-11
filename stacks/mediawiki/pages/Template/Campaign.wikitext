@@ -1,0 +1,135 @@
+<noinclude>
+Infobox and Cargo row for a campaign: one world, played in one system. Create pages with [[Form:Campaign]].
+Characters take their world and system from here, through [[Module:Campaign]].
+
+{{#cargo_declare:_table=Campaigns
+|world=Page
+|system=Page
+|gm=String
+|status=String (allowed values=Planned,Active,Paused,Finished)
+|started=Date
+|ended=Date
+|image=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A campaign: one world, played in one system. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"world": {
+			"label": "World",
+			"description": "The world the campaign is set in",
+			"type": "wiki-page-name",
+			"required": true
+		},
+		"system": {
+			"label": "System",
+			"description": "The system it is played in, such as E5",
+			"type": "wiki-page-name",
+			"suggested": true
+		},
+		"gm": {
+			"label": "Game master",
+			"description": "Username of the game master",
+			"type": "wiki-user-name"
+		},
+		"status": {
+			"label": "Status",
+			"description": "Where the campaign stands",
+			"type": "line",
+			"suggestedvalues": [
+				"Planned",
+				"Active",
+				"Paused",
+				"Finished"
+			]
+		},
+		"started": {
+			"label": "Started",
+			"description": "Date of the first session",
+			"type": "date"
+		},
+		"ended": {
+			"label": "Ended",
+			"description": "Date of the last session",
+			"type": "date"
+		},
+		"image": {
+			"label": "Image",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"world",
+		"system",
+		"gm",
+		"status",
+		"started",
+		"ended",
+		"image",
+		"summary"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Campaigns
+|world={{{world|}}}
+|system={{{system|}}}
+|gm={{{gm|}}}
+|status={{{status|}}}
+|started={{{started|}}}
+|ended={{{ended|}}}
+|image={{{image|}}}
+|summary={{{summary|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{image|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{image}}}|250px]]
+}}
+{{#if:{{{world|}}}|
+{{!}}-
+! World
+{{!}} {{#if:{{{world|}}}|{{#formredlink:target={{{world}}}|form=World}}}}
+}}
+{{#if:{{{system|}}}|
+{{!}}-
+! System
+{{!}} {{#if:{{{system|}}}|[[{{{system}}}]]}}
+}}
+{{#if:{{{gm|}}}|
+{{!}}-
+! Game master
+{{!}} {{#if:{{{gm|}}}|[[User:{{{gm}}}|{{{gm}}}]]}}
+}}
+{{#if:{{{status|}}}|
+{{!}}-
+! Status
+{{!}} {{{status|}}}
+}}
+{{#if:{{{started|}}}|
+{{!}}-
+! Started
+{{!}} {{{started|}}}
+}}
+{{#if:{{{ended|}}}|
+{{!}}-
+! Ended
+{{!}} {{{ended|}}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:Campaigns]]
+</includeonly>

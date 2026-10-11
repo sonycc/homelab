@@ -1,0 +1,4 @@
+Every species that exists in [[E5]], set by a row on its page in [[:Category:Species]].
+NPC stat blocks in E5 pick their species from this list.
+
+[[Category:Species| E5]]

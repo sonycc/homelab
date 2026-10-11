@@ -1,0 +1,39 @@
+<noinclude>
+Create or edit a species' E5 rules, on a page titled after it, such as Human (E5): {{#forminput:form=E5 species traits|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|E5 species traits}}}
+{| class="formtable"
+|-
+! Creature type:
+| {{{field|creature_type|input type=combobox|cargo table=E5_species_traits|cargo field=creature_type}}}
+|-
+! Size:
+| {{{field|size|input type=dropdown|values=Tiny,Small,Medium,Small or Medium,Large|default=Medium}}}
+|-
+! Speed:
+| {{{field|speed|placeholder=30 ft.}}}
+|-
+! Ability score increases:
+| {{{field|ability_scores|placeholder=+2 Con, +1 Wis}}}
+|-
+! Languages:
+| {{{field|languages}}}
+|-
+! Traits:
+| {{{field|traits|input type=textarea|rows=4|editor=wikieditor}}}
+|-
+! Subraces:
+| {{{field|subraces|input type=textarea|rows=4|editor=wikieditor}}}
+|}
+{{{end template}}}
+
+'''Description and notes:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

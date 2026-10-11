@@ -1,0 +1,14 @@
+{{#default_form:Player}}
+Players, one profile each on their own user page. Every profile made with [[Form:Player]] lands here.
+
+Create yours with your own username, exactly as you sign in:
+
+{{#forminput:form=Player|namespace=User|button text=Create or edit profile|query string=wpSummary=initial profile creation}}
+
+== All players ==
+{{#cargo_query:tables=Players
+|fields=_pageName=Player,display_name=Name,pronouns=Pronouns
+|order by=username
+|format=table
+|limit=500
+}}

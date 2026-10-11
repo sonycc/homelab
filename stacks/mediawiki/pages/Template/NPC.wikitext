@@ -1,0 +1,161 @@
+<noinclude>
+Infobox and Cargo row for a non-player character. Create pages with [[Form:NPC]].
+NPCs belong to a world, and can also belong to a campaign, whose system their stat tabs open on. Species and stats go in its e5, e5_5, pf2 and coc7 parameters, shown as tabs under the infobox.
+
+{{#cargo_declare:_table=NPCs
+|world=Page
+|campaign=Page
+|occupation=String
+|faction=List (,) of Page
+|location=Page
+|status=String (allowed values=Alive,Dead,Missing,Unknown)
+|portrait=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A non-player character. Its species and stats go in one stat block per system, shown as tabs under the infobox. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"world": {
+			"label": "World",
+			"description": "The world the NPC belongs to",
+			"type": "wiki-page-name",
+			"required": true
+		},
+		"campaign": {
+			"label": "Campaign",
+			"description": "The campaign the NPC appears in, if any",
+			"type": "wiki-page-name"
+		},
+		"occupation": {
+			"label": "Occupation",
+			"description": "What the NPC does",
+			"type": "line"
+		},
+		"faction": {
+			"label": "Faction",
+			"description": "Factions the NPC belongs to, separated by commas",
+			"type": "string"
+		},
+		"location": {
+			"label": "Location",
+			"description": "The place the NPC is usually found",
+			"type": "wiki-page-name"
+		},
+		"status": {
+			"label": "Status",
+			"description": "Whether the NPC is alive",
+			"type": "line",
+			"suggestedvalues": [
+				"Alive",
+				"Dead",
+				"Missing",
+				"Unknown"
+			]
+		},
+		"portrait": {
+			"label": "Portrait",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		},
+		"e5": {
+			"label": "E5 stat block",
+			"description": "{{E5 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"e5_5": {
+			"label": "E5.5 stat block",
+			"description": "{{E5.5 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"pf2": {
+			"label": "PF2 stat block",
+			"description": "{{PF2 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"coc7": {
+			"label": "CoC 7 stat block",
+			"description": "{{CoC 7 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"world",
+		"campaign",
+		"occupation",
+		"faction",
+		"location",
+		"status",
+		"portrait",
+		"summary",
+		"e5",
+		"e5_5",
+		"pf2",
+		"coc7"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=NPCs
+|world={{{world|}}}
+|campaign={{{campaign|}}}
+|occupation={{{occupation|}}}
+|faction={{{faction|}}}
+|location={{{location|}}}
+|status={{{status|}}}
+|portrait={{{portrait|}}}
+|summary={{{summary|}}}
+}}
+<div style="float:right; clear:right; width:26em; max-width:100%; margin:0 0 1em 1em">
+{| class="wikitable" style="width:100%; margin:0"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{portrait|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{portrait}}}|250px]]
+}}
+{{#if:{{{world|}}}|
+{{!}}-
+! World
+{{!}} {{#if:{{{world|}}}|{{#formredlink:target={{{world}}}|form=World}}}}
+}}
+{{#if:{{{campaign|}}}|
+{{!}}-
+! Campaign
+{{!}} {{#if:{{{campaign|}}}|{{#formredlink:target={{{campaign}}}|form=Campaign}}}}
+}}
+{{#if:{{{occupation|}}}|
+{{!}}-
+! Occupation
+{{!}} {{{occupation|}}}
+}}
+{{#if:{{{faction|}}}|
+{{!}}-
+! Faction
+{{!}} {{#arraymap:{{{faction|}}}|,|@@@@|{{#formredlink:target=@@@@|form=Faction}}|,&#32;}}
+}}
+{{#if:{{{location|}}}|
+{{!}}-
+! Location
+{{!}} {{#if:{{{location|}}}|{{#formredlink:target={{{location}}}|form=Place}}}}
+}}
+{{#if:{{{status|}}}|
+{{!}}-
+! Status
+{{!}} {{{status|}}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+{{#if:{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}|{{#invoke:Stats|tabs|{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}}}}}
+</div>
+[[Category:NPCs]]
+</includeonly>

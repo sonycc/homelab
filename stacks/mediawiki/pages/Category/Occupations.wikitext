@@ -1,0 +1,14 @@
+{{#default_form:Occupation}}
+CoC 7 occupations. Every page made with [[Form:Occupation]] lands here.
+
+The occupation field in a CoC 7 stat block picks from these.
+
+{{#forminput:form=Occupation|autocomplete on category=Occupations|button text=Create or edit occupation}}
+
+== All occupations ==
+{{#cargo_query:tables=Occupations
+|fields=_pageName=Occupation,skill_points=Occupation Skill Points,credit_rating=Credit Rating,contacts=Suggested Contacts
+|order by=_pageName
+|format=table
+|limit=1000
+}}

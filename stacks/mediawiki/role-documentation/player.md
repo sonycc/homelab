@@ -28,8 +28,9 @@ You bring the lore: places, people, history, your characters and what happened a
 | --- | --- | --- |
 | Create or edit a page | **Edit** button, or click a red link | Saved as a suggestion until approved |
 | Draft in your own space | `User:YourName/...` | Never needs approval. Every member can still read it |
+| Make your profile | **Create or edit profile** box on `Category:Players`, with your username | Lists your characters and campaigns for you, and puts you in the Player picker |
 | Create a character | **Create or edit character** box on `Category:Characters` | A form fills in the infobox for you |
-| Create a place, NPC, faction or campaign | The box on `Category:Places`, `Category:NPCs`, `Category:Factions` or `Category:Campaigns`, or a red link in an infobox | Same as characters |
+| Create an NPC, creature, species, place, world, faction or campaign | The box on that type's category page, such as `Category:NPCs`, or a red link in an infobox | Same as characters |
 | Upload files | `Special:Upload` | Up to 20 MB |
 | Discuss | Any talk page | Everyone can post |
 | Watch pages | Star icon, or **Watch this page** when saving | Changes show in `Special:Watchlist` |
@@ -72,7 +73,7 @@ Use the visual editor for prose. Use source editing for tables, templates and an
 
 1. Search for the title first. If nothing exists, the search results offer to create it. You can also click any red link.
 2. Start with a sentence that says what the subject is, for example "Thornwall is a ruined keep on the northern edge of the Reach."
-3. Add at least one category at the bottom, such as `[[Category:History]]`. Places, characters, NPCs, factions and campaigns have forms instead, which add the category for you.
+3. Add at least one category at the bottom, such as `[[Category:History]]`. Characters, NPCs, creatures, places, worlds, factions and campaigns have forms instead, which add the category for you.
 4. Save with a summary. The page now waits for a Loremaster.
 
 Not ready to share it as a suggestion yet? Draft it at `User:YourName/Thornwall`. When it's done, ask a Loremaster on the draft's talk page to move it into canon.
@@ -80,9 +81,10 @@ Not ready to share it as a suggestion yet? Draft it at `User:YourName/Thornwall`
 ### Creating your character
 
 1. Open `Category:Characters` and type your character's name into the **Create or edit character** box.
-2. Fill in the form: player, campaign, ancestry, class, level, faction, status, a portrait and a one-line summary. You can upload the portrait straight from the form.
+2. Fill in the form: player, campaign, faction, status, a portrait and a one-line summary. You can upload the portrait straight from the form.
 3. Write the backstory in the large box below the form, using normal wikitext.
-4. Save. The page appears in the table on `Category:Characters`, and gets an **Edit with form** tab for later changes.
+4. Under **Statistics**, add a stat block for your campaign's system, such as **Add E5 stats**. Species, class and level go there, because they differ between systems. Species and class are picked from existing pages: type to search, and pick one from the list. If yours is missing, **Create new** beside the field opens its form in a new tab, and it shows up in the search once it's saved. PF2 heritage and CoC occupation take any name, and suggest the ones that already have a page. Add more systems if the character is played in more than one. Leave out what the form works out for you, such as ability modifiers.
+5. Save. The page appears in the table on `Category:Characters`, and gets an **Edit with form** tab for later changes. The world and system shown in the infobox come from the campaign.
 
 Campaign and faction are picked from existing pages. If yours isn't listed, type the name anyway. It shows as a red link in the infobox, and clicking it opens the campaign or faction form.
 
@@ -131,6 +133,8 @@ Titles are case-sensitive except for the first letter, and spaces and underscore
 ### Images and files
 
 Upload first at `Special:Upload`. Allowed types are png, jpg, jpeg, gif, webp, svg, pdf, mp3 and ogg. Then embed the file:
+
+Any file on [Wikimedia Commons](https://commons.wikimedia.org) works without uploading: use its name as it appears there, such as `[[File:NGC 2683 Spiral galaxy.jpg]]`, or type that name into a form's image field. Its file page here shows the author and licence from Commons. Paste the file name, never the web address.
 
 ```
 [[File:Thornwall map.jpg]]                                full size

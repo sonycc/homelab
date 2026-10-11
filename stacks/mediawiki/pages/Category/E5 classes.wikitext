@@ -1,0 +1,4 @@
+Every class that exists in [[E5]], set by a row on its page in [[:Category:Classes]].
+NPC stat blocks in E5 pick their class from this list.
+
+[[Category:Classes| E5]]

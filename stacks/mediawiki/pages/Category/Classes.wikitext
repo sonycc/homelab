@@ -1,0 +1,15 @@
+{{#default_form:Class}}
+Classes, and the systems each one exists in. Every page made with [[Form:Class]] lands here.
+
+The class field in an E5, E5.5 or PF2 stat block picks from these. A PC picks from the classes playable in that system, and an NPC from every class in it.
+
+{{#forminput:form=Class|autocomplete on category=Classes|button text=Create or edit class}}
+
+== All classes ==
+One row per class and system.
+{{#cargo_query:tables=Class_systems
+|fields=_pageName=Class,system=System,playable=Playable class
+|order by=_pageName, system
+|format=table
+|limit=1000
+}}

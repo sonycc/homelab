@@ -1,0 +1,12 @@
+{{#default_form:Character}}
+Player characters. Every page made with [[Form:Character]] lands here.
+
+{{#forminput:form=Character|autocomplete on category=Characters|button text=Create or edit character}}
+
+== All characters ==
+{{#cargo_query:tables=Characters
+|fields=_pageName=Character,player=Player,campaign=Campaign,faction=Faction,status=Status
+|order by=campaign, _pageName
+|format=table
+|limit=500
+}}

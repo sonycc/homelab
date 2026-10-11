@@ -1,0 +1,120 @@
+<noinclude>
+Infobox and Cargo row for a faction. Create pages with [[Form:Faction]].
+
+{{#cargo_declare:_table=Factions
+|world=Page
+|type=String
+|seat=Page
+|leader=Page
+|status=String (allowed values=Active,Disbanded,Destroyed,Unknown)
+|emblem=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A faction: a guild, cult, kingdom or other group. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"world": {
+			"label": "World",
+			"description": "The world the faction belongs to",
+			"type": "wiki-page-name",
+			"required": true
+		},
+		"type": {
+			"label": "Type",
+			"description": "Such as guild, cult or kingdom",
+			"type": "line"
+		},
+		"seat": {
+			"label": "Seat",
+			"description": "The place it is based",
+			"type": "wiki-page-name"
+		},
+		"leader": {
+			"label": "Leader",
+			"description": "Who leads it, usually an NPC",
+			"type": "wiki-page-name"
+		},
+		"status": {
+			"label": "Status",
+			"description": "Whether it still exists",
+			"type": "line",
+			"suggestedvalues": [
+				"Active",
+				"Disbanded",
+				"Destroyed",
+				"Unknown"
+			]
+		},
+		"emblem": {
+			"label": "Emblem",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"world",
+		"type",
+		"seat",
+		"leader",
+		"status",
+		"emblem",
+		"summary"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Factions
+|world={{{world|}}}
+|type={{{type|}}}
+|seat={{{seat|}}}
+|leader={{{leader|}}}
+|status={{{status|}}}
+|emblem={{{emblem|}}}
+|summary={{{summary|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{emblem|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{emblem}}}|150px]]
+}}
+{{#if:{{{world|}}}|
+{{!}}-
+! World
+{{!}} {{#if:{{{world|}}}|{{#formredlink:target={{{world}}}|form=World}}}}
+}}
+{{#if:{{{type|}}}|
+{{!}}-
+! Type
+{{!}} {{{type|}}}
+}}
+{{#if:{{{seat|}}}|
+{{!}}-
+! Seat
+{{!}} {{#if:{{{seat|}}}|{{#formredlink:target={{{seat}}}|form=Place}}}}
+}}
+{{#if:{{{leader|}}}|
+{{!}}-
+! Leader
+{{!}} {{#if:{{{leader|}}}|{{#formredlink:target={{{leader}}}|form=NPC}}}}
+}}
+{{#if:{{{status|}}}|
+{{!}}-
+! Status
+{{!}} {{{status|}}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:Factions]]
+</includeonly>

@@ -81,6 +81,77 @@ $wgHooks['getUserPermissionsErrors'][] = static function ( $title, $user, $actio
 	return false;
 };
 
+// Pages in pages/ are re-imported on every start, which overwrites an edit made on the wiki.
+// Posts each such edit to Discord, so it can be copied into git first.
+$wgHooks['PageSaveComplete'][] = static function ( $wikiPage, $user, $summary, $flags, $revisionRecord, $editResult ) {
+	// entrypoint.sh's import never fires this hook. Edits by other maintenance scripts are skipped too.
+	if ( $editResult->isNullEdit() || $user->getName() === \MediaWiki\User\User::MAINTENANCE_SCRIPT_USER ) {
+		return;
+	}
+	$title = $wikiPage->getTitle();
+	$namespace = \MediaWiki\MediaWikiServices::getInstance()->getNamespaceInfo()->getCanonicalName( $title->getNamespace() );
+	// Where docker-compose.yml mounts pages/.
+	$file = "/var/www/pages/$namespace/" . $title->getText() . '.wikitext';
+	if ( !$namespace || !is_file( $file ) ) {
+		return;
+	}
+	$content = $revisionRecord->getContent( \MediaWiki\Revision\SlotRecord::MAIN );
+	if ( $content instanceof TextContent && trim( $content->getText() ) === trim( file_get_contents( $file ) ) ) {
+		return;
+	}
+	$page = $title->getPrefixedText();
+	$diff = $title->getCanonicalURL( [ 'diff' => 'prev', 'oldid' => $revisionRecord->getId() ] );
+	wikiNotify( 'GIT_PAGE_EDIT', "**{$user->getName()}** edited **$page**, which is kept in git."
+		. " The next restart overwrites the edit, so copy it into `stacks/mediawiki/pages/$namespace/` first: <$diff>" );
+};
+
+// Posts to Discord when a page starts waiting for approval: a new page, or the first
+// unapproved edit after an approved revision. Later edits while it waits stay quiet.
+// Edits by approvers are approved automatically, so they never wait.
+$wgHooks['PageSaveComplete'][] = static function ( $wikiPage, $user, $summary, $flags, $revisionRecord, $editResult ) {
+	$title = $wikiPage->getTitle();
+	if ( $editResult->isNullEdit() || !ApprovedRevs::pageIsApprovable( $title ) ) {
+		return;
+	}
+	$services = \MediaWiki\MediaWikiServices::getInstance();
+	if ( ApprovedRevs::userCanApprove( $services->getUserFactory()->newFromUserIdentity( $user ), $title ) ) {
+		return;
+	}
+	$parent = (int)$revisionRecord->getParentId();
+	if ( $parent !== 0 && $parent !== (int)ApprovedRevs::getApprovedRevID( $title ) ) {
+		return;
+	}
+	$page = $title->getPrefixedText();
+	$queue = \MediaWiki\SpecialPage\SpecialPage::getTitleFor( 'ApprovedRevs' )->getCanonicalURL();
+	$link = $parent === 0
+		? $title->getCanonicalURL()
+		: $title->getCanonicalURL( [ 'diff' => 'prev', 'oldid' => $revisionRecord->getId() ] );
+	$did = $parent === 0 ? 'created' : 'edited';
+	wikiNotify( 'APPROVAL', "**{$user->getName()}** $did **$page**, which is waiting for approval: <$link> · queue: <$queue>" );
+};
+
+// Posts each page that starts showing a Lua error, such as a Cargo query PostgreSQL rejects.
+// Scribunto files those pages in a tracking category when a save or a links refresh parses them.
+$wgHooks['CategoryAfterPageAdded'][] = static function ( $category, $wikiPage ) {
+	if ( $category->getTitle()->getText() !== wfMessage( 'scribunto-common-error-category' )->inContentLanguage()->text() ) {
+		return;
+	}
+	$title = $wikiPage->getTitle();
+	wikiWarn( 'SCRIPT_ERROR', "**{$title->getPrefixedText()}** shows a Lua error: <{$title->getCanonicalURL()}>" );
+};
+
+// Posts each exception the wiki logs, such as a form whose query fails.
+$wgHooks['LogException'][] = static function ( $e, $suppressed ) {
+	if ( $suppressed ) {
+		return;
+	}
+	$where = MW_ENTRY_POINT === 'cli'
+		? 'a maintenance script or job'
+		: '<' . RequestContext::getMain()->getRequest()->getFullRequestURL() . '>';
+	$message = mb_substr( str_replace( '```', "'''", $e->getMessage() ), 0, 1500 );
+	wikiWarn( 'EXCEPTION', '**' . get_class( $e ) . "** on $where:\n```\n$message\n```" );
+};
+
 $wikiMessages += [
 	// Shown on a missing page the viewer cannot create, for any reason.
 	'Noarticletext-nopermission' => 'This page does not exist yet.'

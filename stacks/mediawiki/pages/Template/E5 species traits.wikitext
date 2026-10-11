@@ -1,0 +1,119 @@
+<noinclude>
+D&D 5th edition (2014) rules for one species, on a page titled after it, such as Human (E5).
+The species' own page links here from its Systems box. Create pages from that link, or with [[Form:E5 species traits]].
+
+{{#cargo_declare:_table=E5_species_traits
+|species=Page
+|creature_type=String
+|size=String
+|speed=String
+|ability_scores=String
+|languages=String
+|traits=Wikitext
+|subraces=Wikitext
+}}
+
+<templatedata>
+{
+	"description": "D&D 5th edition (2014) rules for one species, on a page titled after it, such as Human (E5). Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"creature_type": {
+			"label": "Creature type",
+			"description": "Such as humanoid",
+			"type": "line"
+		},
+		"size": {
+			"label": "Size",
+			"description": "Size category",
+			"type": "line"
+		},
+		"speed": {
+			"label": "Speed",
+			"description": "Such as 30 ft.",
+			"type": "line"
+		},
+		"ability_scores": {
+			"label": "Ability score increases",
+			"description": "Such as +2 Con, +1 Wis",
+			"type": "line"
+		},
+		"languages": {
+			"label": "Languages",
+			"description": "Languages it speaks",
+			"type": "line"
+		},
+		"traits": {
+			"label": "Traits",
+			"description": "Its traits, such as Darkvision. Shown as a section",
+			"type": "content"
+		},
+		"subraces": {
+			"label": "Subraces",
+			"description": "Its subraces, if any. Shown as a section",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"creature_type",
+		"size",
+		"speed",
+		"ability_scores",
+		"languages",
+		"traits",
+		"subraces"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=E5_species_traits
+|species={{#invoke:Species|hub}}
+|creature_type={{{creature_type|}}}
+|size={{{size|}}}
+|speed={{{speed|}}}
+|ability_scores={{{ability_scores|}}}
+|languages={{{languages|}}}
+|traits={{{traits|}}}
+|subraces={{{subraces|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{#invoke:Species|hub}} in [[E5]]
+|-
+! Species
+| [[{{#invoke:Species|hub}}]]
+{{#if:{{{creature_type|}}}|
+{{!}}-
+! Creature type
+{{!}} {{{creature_type|}}}
+}}
+{{#if:{{{size|}}}|
+{{!}}-
+! Size
+{{!}} {{{size|}}}
+}}
+{{#if:{{{speed|}}}|
+{{!}}-
+! Speed
+{{!}} {{{speed|}}}
+}}
+{{#if:{{{ability_scores|}}}|
+{{!}}-
+! Ability score increases
+{{!}} {{{ability_scores|}}}
+}}
+{{#if:{{{languages|}}}|
+{{!}}-
+! Languages
+{{!}} {{{languages|}}}
+}}
+|}
+{{#if:{{{traits|}}}|
+== Traits ==
+{{{traits}}}
+}}
+{{#if:{{{subraces|}}}|
+== Subraces ==
+{{{subraces}}}
+}}
+[[Category:E5 species traits]]
+</includeonly>

@@ -1,0 +1,42 @@
+<noinclude>
+Call of Cthulhu 7th edition rules for one species, on a page titled after it, such as Human (CoC 7).
+The species' own page links here from its Systems box. Create pages from that link, or with [[Form:CoC 7 species traits]].
+
+{{#cargo_declare:_table=CoC7_species_traits
+|species=Page
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "Call of Cthulhu 7th edition rules for one species, on a page titled after it, such as Human (CoC 7). Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"summary"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=CoC7_species_traits
+|species={{#invoke:Species|hub}}
+|summary={{{summary|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{#invoke:Species|hub}} in [[CoC 7]]
+|-
+! Species
+| [[{{#invoke:Species|hub}}]]
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:CoC 7 species traits]]
+</includeonly>

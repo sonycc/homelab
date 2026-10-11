@@ -1,34 +1,34 @@
-# 1.43 LTS, supported to December 2027. A major bump also moves EXT_BRANCH below.
+# 1.43 LTS, supported to December 2027. A major bump means checking each tag below still supports it.
 ARG MEDIAWIKI_VERSION=1.43.9
 
 FROM alpine:3.23 AS extensions
 
-ARG EXT_BRANCH=REL1_43
-# Not a Wikimedia skin, so no REL branch. Requires MediaWiki >= 1.43.
-ARG CITIZEN_TAG=v3.23.0
-# Same publisher as Citizen, also pinned by tag. Requires MediaWiki >= 1.43.
+# Release tags, not REL branches: these three are versioned across MediaWiki releases,
+# and their REL branches stay frozen at whatever was current when cut.
+# Requires MediaWiki >= 1.42.
+ARG CARGO_TAG=3.9.4
+# Requires MediaWiki >= 1.40.
+ARG PAGEFORMS_TAG=6.0.11
+# Requires MediaWiki >= 1.42.
+ARG APPROVEDREVS_TAG=2.4.2
+# Requires MediaWiki >= 1.43.
+ARG CITIZEN_TAG=v3.24.0
+# Requires MediaWiki >= 1.43.
 ARG TABBERNEUE_TAG=v4.1.0
 
 RUN apk add --no-cache git
 
-WORKDIR /extensions
-
 RUN set -eux; \
-    for ext in Cargo PageForms ApprovedRevs; do \
-      git clone --depth 1 --branch "$EXT_BRANCH" \
-        "https://github.com/wikimedia/mediawiki-extensions-$ext.git" "$ext"; \
-      rm -rf "$ext/.git"; \
-    done; \
-    git clone --depth 1 --branch "$TABBERNEUE_TAG" \
-      https://github.com/StarCitizenTools/mediawiki-extensions-TabberNeue.git TabberNeue; \
-    rm -rf TabberNeue/.git
-
-WORKDIR /skins
-
-RUN set -eux; \
-    git clone --depth 1 --branch "$CITIZEN_TAG" \
-      https://github.com/StarCitizenTools/mediawiki-skins-Citizen.git Citizen; \
-    rm -rf Citizen/.git
+    for spec in \
+      "extensions/Cargo $CARGO_TAG wikimedia/mediawiki-extensions-Cargo" \
+      "extensions/PageForms $PAGEFORMS_TAG wikimedia/mediawiki-extensions-PageForms" \
+      "extensions/ApprovedRevs $APPROVEDREVS_TAG wikimedia/mediawiki-extensions-ApprovedRevs" \
+      "extensions/TabberNeue $TABBERNEUE_TAG StarCitizenTools/mediawiki-extensions-TabberNeue" \
+      "skins/Citizen $CITIZEN_TAG StarCitizenTools/mediawiki-skins-Citizen"; do \
+      set -- $spec; \
+      git clone --depth 1 --branch "$2" "https://github.com/$3.git" "/$1"; \
+      rm -rf "/$1/.git"; \
+    done
 
 FROM mediawiki:${MEDIAWIKI_VERSION}
 

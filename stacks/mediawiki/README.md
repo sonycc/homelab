@@ -1,12 +1,12 @@
 # MediaWiki
 
-Private wiki for the homebrew game, on the [official MediaWiki image](https://hub.docker.com/_/mediawiki) (1.43 LTS) with Cargo, Page Forms, Approved Revs and the Citizen skin built in.
+Private wiki for the homebrew game, on the [official MediaWiki image](https://hub.docker.com/_/mediawiki) (1.43 LTS) with Cargo, Page Forms, Approved Revs, TabberNeue and the Citizen skin built in.
 Database is the shared postgres stack. First-time setup is in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## How editing works
 
 Open registration behind a captcha question. Anonymous visitors can read the Main Page and nothing else. Admins grant the Player and Loremaster roles at `Special:UserRights`; new admins are made with `createAndPromote --sysop`.
-With `MW_SIGNUP_WEBHOOK_URL` set, each signup is posted to Discord with a link to that page.
+With `DISCORD_WEBHOOK_URL_NOTIFICATIONS` set, Discord gets a message for each signup, with a link to that page, and for each page that starts waiting for approval.
 
 | Group (shown as) | Can |
 |---|---|
@@ -24,8 +24,6 @@ A page with no approved revision shows readers a blank page under "awaiting appr
 Pages awaiting approval are listed at `Special:ApprovedRevs`.
 A new player drafts in `User:Name/...`, and a loremaster moves the page into canon.
 
-`$egApprovedRevsEnabledNamespaces` uses an `array_plus` merge strategy: a shorter array does **not** disable the defaults, so unwanted namespaces must be switched off by name.
-
 ## Licensing
 
 | Content | Licence |
@@ -40,11 +38,13 @@ The save notice lets other contributors edit and adapt a contribution on this wi
 ## Pages kept in git
 
 `pages/<Namespace>/<Title>.wikitext` is imported on every start, and the file overwrites any on-wiki edit.
-Imports are never approved automatically, so a page imported into an approvable namespace needs approving by hand after each change.
+With `DISCORD_WEBHOOK_URL_NOTIFICATIONS` set, each such edit is posted to Discord with its diff, so it can be copied into git before a restart.
+Each start also approves the imported `Category:` pages and rebuilds their links.
 
 ## Structured content
 
-After saving a template with `#cargo_declare`, open it and use **Create data table**, or nothing is stored.
+Each start builds the Cargo table of every `#cargo_declare` in `pages/Template/` that is new or changed since the last build, so a deploy needs no Cargo steps.
+A template made on the wiki is not covered: after saving it, open it and use **Create data table**, or nothing is stored.
 Reference: [Working with MediaWiki, chapter 16](https://workingwithmediawiki.com/book/chapter16.html).
 
 ## Backups
@@ -78,16 +78,16 @@ The database is restored from the postgres stack's dumps.
 ## Operational notes
 
 **The schema is `mediawiki`, not `public`.**
-`MW_DB_SCHEMA` feeds both `install.php --dbschema` and `$wgDBmwschema`. If they disagree, `update.php` reports the wiki as older than 1.35. Manual `psql` queries need the schema qualified.
+Manual `psql` queries need the schema qualified.
 
 **`update.php` runs on every start**, from `entrypoint.sh`. Do not replace the entrypoint with `apache2-foreground`.
 
 **Version bumps are manual.** Watch [mediawiki-announce](https://lists.wikimedia.org/postorius/lists/mediawiki-announce.lists.wikimedia.org/) and bump `ARG MEDIAWIKI_VERSION` in the Dockerfile.
 
-**Extension refs are branch names**, so a new extension commit is not picked up until the `ARG` refs change. Citizen has no `REL1_43` branch; `CITIZEN_TAG` pins a release, bumped by hand.
+**Extensions are pinned to release tags**, one `ARG` each in the Dockerfile, bumped by hand.
 
 **Brute-force protection is `$wgPasswordAttemptThrottle` alone.**
-It keys on the client only while `$wgCdnServersNoPurge` names the proxy; otherwise three bad logins lock out everyone. TOTP is optional, so enrol the admin accounts at `Special:OATHManage`.
+TOTP is optional, so enrol the admin accounts at `Special:OATHManage`.
 
 **Email is off.** Reset a forgotten password from the host:
 
@@ -98,8 +98,6 @@ docker compose exec mediawiki php maintenance/run.php changePassword --user <nam
 **PNG, WebP and GIF above 12.5 MP** upload but get no thumbnail. Export large maps as JPEG.
 
 **Categories sort as plain text**, so Level 10 comes before Level 2.
-The `numeric` and `uca-*` collations break on postgres. Pad the key in the template instead: `{{DEFAULTSORT:Level 02}}`.
-
-**Uploads cap at 99 MB.** `upload_max_filesize` in the Dockerfile and `$wgMaxUploadSize` move together.
+Pad the key in the template: `{{DEFAULTSORT:Level 02}}`.
 
 **Config** is `config/settings/*.php`, one file per section of [Manual:Configuration_settings](https://www.mediawiki.org/wiki/Manual:Configuration_settings).

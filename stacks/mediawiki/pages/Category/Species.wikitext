@@ -1,0 +1,15 @@
+{{#default_form:Species}}
+Species, and the systems each one exists in. Every page made with [[Form:Species]] lands here.
+
+The species field in a stat block picks from these. A PC picks from the species playable in that system, and an NPC from every species in it.
+
+{{#forminput:form=Species|autocomplete on category=Species|button text=Create or edit species}}
+
+== All species ==
+One row per species and system.
+{{#cargo_query:tables=Species_systems
+|fields=_pageName=Species,system=System,playable=Playable species
+|order by=_pageName, system
+|format=table
+|limit=1000
+}}

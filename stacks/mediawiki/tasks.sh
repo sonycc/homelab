@@ -22,10 +22,10 @@ shopt -s nullglob
 
 notify() {
   echo "FAILED - $1" >&2
-  [ -n "${DISCORD_WEBHOOK_URL:-}" ] || return 0
+  [ -n "${DISCORD_WEBHOOK_URL_WARNINGS:-}" ] || return 0
   curl -fsS -X POST -H 'Content-Type: application/json' \
-    -d "{\"content\":\"**wiki images backup failed** - $1\"}" \
-    "$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
+    -d "{\"content\":\"${DISCORD_MENTIONS_BACKUP_FAILURE:-} **wiki images backup failed** - $1\"}" \
+    "$DISCORD_WEBHOOK_URL_WARNINGS" >/dev/null 2>&1 || true
 }
 
 manifest() {

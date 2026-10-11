@@ -20,27 +20,27 @@ $wgPasswordAttemptThrottle = [
 $wgAccountCreationThrottle = [ [ 'count' => 1, 'seconds' => 60 * 60 * 24 * 365 ] ];
 
 // Posts each new account to Discord, so an admin can give it a role.
-// Sent after the response, so a slow or failing webhook never affects signup.
 $wgHooks['LocalUserCreated'][] = static function ( $user, $autocreated ) {
-	$webhook = wikiEnv( 'MW_SIGNUP_WEBHOOK_URL' );
-	if ( $webhook === '' ) {
-		return;
-	}
 	$name = $user->getName();
 	$rights = \MediaWiki\SpecialPage\SpecialPage::getTitleFor( 'UserRights', $name )->getCanonicalURL();
-	\MediaWiki\Deferred\DeferredUpdates::addCallableUpdate( static function () use ( $webhook, $name, $rights ) {
-		$request = \MediaWiki\MediaWikiServices::getInstance()->getHttpRequestFactory()->create( $webhook, [
-			'method' => 'POST',
-			'postData' => json_encode( [
-				'content' => "New wiki account: **$name** · give a role: <$rights>",
-				'allowed_mentions' => [ 'parse' => [] ],
-			] ),
-			'timeout' => 5,
-		], __METHOD__ );
-		$request->setHeader( 'Content-Type', 'application/json' );
-		$request->execute();
-	} );
+	wikiNotify( 'SIGNUP', "New wiki account: **$name** · give a role: <$rights>" );
+};
+
+// Sends a signed-in user without a profile from the Main Page to the profile form.
+// A profile is a user page in Category:Players, which Template:Player adds.
+// Only the Main Page redirects, so every other page stays reachable without one.
+$wgHooks['MediaWikiPerformAction'][] = static function ( $output, $article, $title, $user, $request, $mediaWiki ) {
+	if ( !$user->isRegistered() || !$title->isMainPage() || $mediaWiki->getAction() !== 'view' ) {
+		return true;
+	}
+	$profile = $user->getUserPage();
+	if ( $profile->exists() && array_key_exists( 'Category:Players', $profile->getParentCategories() ) ) {
+		return true;
+	}
+	$form = \MediaWiki\SpecialPage\SpecialPage::getTitleFor( 'FormEdit', 'Player/' . $profile->getPrefixedText() );
+	$output->redirect( $form->getFullURL( [ 'wpSummary' => 'initial profile creation' ] ) );
+	return false;
 };
 
 // Bot password logins skip TOTP. Turn on when the Discord bot gets a wiki account.
-$wgEnableBotPasswords = false;
+$wgEnableBotPasswords = true;

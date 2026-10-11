@@ -1,0 +1,17 @@
+{{#default_form:Place}}
+Places, each inside another place or, at the top, a [[:Category:Worlds|world]]. Every page made with [[Form:Place]] lands here.
+
+{{#forminput:form=Place|autocomplete on category=Places|button text=Create or edit place}}
+
+== Not in any world ==
+Places whose '''Located in''' never leads up to a world. Each one needs its '''Located in''' fixed, or the page it stops at created.
+
+{{#invoke:Place|strays}}
+
+== All places ==
+{{#cargo_query:tables=Places
+|fields=_pageName=Place,type=Type,located_in=Located in,ruler=Ruler
+|order by=located_in, _pageName
+|format=table
+|limit=500
+}}

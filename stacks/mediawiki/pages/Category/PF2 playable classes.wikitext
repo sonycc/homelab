@@ -1,0 +1,4 @@
+Every class a player can pick in [[PF2]], set by '''Playable class''' on its row in [[:Category:Classes]].
+PC stat blocks in PF2 pick their class from this list.
+
+[[Category:Classes| PF2 playable]]

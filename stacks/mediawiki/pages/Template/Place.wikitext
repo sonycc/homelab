@@ -1,0 +1,113 @@
+<noinclude>
+Infobox and Cargo row for a place. Create pages with [[Form:Place]].
+
+Every place has a parent in <code>located_in</code>: another place, or a world at the top.
+[[Module:Place]] builds the path, the places below and what is within.
+
+{{#cargo_declare:_table=Places
+|type=String (allowed values=Plane,Continent,Region,City,Town,Village,District,Building,Dungeon,Landmark,Wilderness)
+|located_in=Page
+|ruler=Page
+|map=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A place, inside another place or, at the top, a world. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"type": {
+			"label": "Type",
+			"description": "What kind of place it is",
+			"type": "line",
+			"suggestedvalues": [
+				"Plane",
+				"Continent",
+				"Region",
+				"City",
+				"Town",
+				"Village",
+				"District",
+				"Building",
+				"Dungeon",
+				"Landmark",
+				"Wilderness"
+			]
+		},
+		"located_in": {
+			"label": "Located in",
+			"description": "The place or world this one is inside",
+			"type": "wiki-page-name",
+			"required": true
+		},
+		"ruler": {
+			"label": "Ruler",
+			"description": "Who rules it, usually an NPC",
+			"type": "wiki-page-name"
+		},
+		"map": {
+			"label": "Map",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"type",
+		"located_in",
+		"ruler",
+		"map",
+		"summary"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Places
+|type={{{type|}}}
+|located_in={{{located_in|}}}
+|ruler={{{ruler|}}}
+|map={{{map|}}}
+|summary={{{summary|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{map|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{map}}}|250px]]
+}}
+{{#if:{{{type|}}}|
+{{!}}-
+! Type
+{{!}} {{{type}}}
+}}
+{{#if:{{{ruler|}}}|
+{{!}}-
+! Ruler
+{{!}} {{#formredlink:target={{{ruler}}}|form=NPC}}
+}}
+{{#invoke:Place|rows|{{{located_in|}}}}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:Places]]
+{{#switch:{{{type|}}}
+|Plane=[[Category:Planes]]
+|Continent=[[Category:Continents]]
+|Region=[[Category:Regions]]
+|City=[[Category:Cities]]
+|Town=[[Category:Towns]]
+|Village=[[Category:Villages]]
+|District=[[Category:Districts]]
+|Building=[[Category:Buildings]]
+|Dungeon=[[Category:Dungeons]]
+|Landmark=[[Category:Landmarks]]
+|Wilderness=[[Category:Wilderness]]
+}}
+</includeonly>

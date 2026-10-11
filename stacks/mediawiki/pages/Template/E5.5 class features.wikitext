@@ -1,0 +1,196 @@
+<noinclude>
+D&D 5th edition (2024) rules for one class, on a page titled after it, such as Wizard (E5.5).
+The class' own page links here from its Systems box. Create pages from that link, or with [[Form:E5.5 class features]].
+
+{{#cargo_declare:_table=E5_5_class_features
+|class=Page
+|primary_ability=String
+|hit_die=String
+|saving_throws=String
+|skills=String
+|weapons=String
+|tools=String
+|armor=String
+|weapon_mastery=String
+|spellcasting_ability=String
+|subclass_level=Integer
+|equipment=Wikitext
+|features=Wikitext
+|subclasses=Wikitext
+}}
+
+<templatedata>
+{
+	"description": "D&D 5th edition (2024) rules for one class, on a page titled after it, such as Wizard (E5.5). Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"primary_ability": {
+			"label": "Primary ability",
+			"description": "Such as Intelligence",
+			"type": "line"
+		},
+		"hit_die": {
+			"label": "Hit point die",
+			"description": "Such as d8",
+			"type": "line"
+		},
+		"saving_throws": {
+			"label": "Saving throw proficiencies",
+			"description": "Such as Intelligence, Wisdom",
+			"type": "line"
+		},
+		"skills": {
+			"label": "Skill proficiencies",
+			"description": "Skill choices",
+			"type": "line"
+		},
+		"weapons": {
+			"label": "Weapon proficiencies",
+			"description": "Such as simple weapons",
+			"type": "line"
+		},
+		"tools": {
+			"label": "Tool proficiencies",
+			"description": "Empty if none",
+			"type": "line"
+		},
+		"armor": {
+			"label": "Armor training",
+			"description": "Such as light armor and shields",
+			"type": "line"
+		},
+		"weapon_mastery": {
+			"label": "Weapon Mastery",
+			"description": "How many kinds of weapons, empty if none",
+			"type": "line"
+		},
+		"spellcasting_ability": {
+			"label": "Spellcasting ability",
+			"description": "Empty if it casts no spells",
+			"type": "line"
+		},
+		"subclass_level": {
+			"label": "Subclass level",
+			"description": "The level it picks a subclass at",
+			"type": "number"
+		},
+		"equipment": {
+			"label": "Starting equipment",
+			"description": "Shown as a section",
+			"type": "content"
+		},
+		"features": {
+			"label": "Features",
+			"description": "Its features by level, such as a level table. Shown as a section",
+			"type": "content"
+		},
+		"subclasses": {
+			"label": "Subclasses",
+			"description": "Its subclasses, if any. Shown as a section",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"primary_ability",
+		"hit_die",
+		"saving_throws",
+		"skills",
+		"weapons",
+		"tools",
+		"armor",
+		"weapon_mastery",
+		"spellcasting_ability",
+		"subclass_level",
+		"equipment",
+		"features",
+		"subclasses"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=E5_5_class_features
+|class={{#invoke:Species|hub}}
+|primary_ability={{{primary_ability|}}}
+|hit_die={{{hit_die|}}}
+|saving_throws={{{saving_throws|}}}
+|skills={{{skills|}}}
+|weapons={{{weapons|}}}
+|tools={{{tools|}}}
+|armor={{{armor|}}}
+|weapon_mastery={{{weapon_mastery|}}}
+|spellcasting_ability={{{spellcasting_ability|}}}
+|subclass_level={{{subclass_level|}}}
+|equipment={{{equipment|}}}
+|features={{{features|}}}
+|subclasses={{{subclasses|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{#invoke:Species|hub}} in [[E5.5]]
+|-
+! Class
+| [[{{#invoke:Species|hub}}]]
+{{#if:{{{primary_ability|}}}|
+{{!}}-
+! Primary ability
+{{!}} {{{primary_ability|}}}
+}}
+{{#if:{{{hit_die|}}}|
+{{!}}-
+! Hit point die
+{{!}} {{{hit_die|}}}
+}}
+{{#if:{{{saving_throws|}}}|
+{{!}}-
+! Saving throw proficiencies
+{{!}} {{{saving_throws|}}}
+}}
+{{#if:{{{skills|}}}|
+{{!}}-
+! Skill proficiencies
+{{!}} {{{skills|}}}
+}}
+{{#if:{{{weapons|}}}|
+{{!}}-
+! Weapon proficiencies
+{{!}} {{{weapons|}}}
+}}
+{{#if:{{{tools|}}}|
+{{!}}-
+! Tool proficiencies
+{{!}} {{{tools|}}}
+}}
+{{#if:{{{armor|}}}|
+{{!}}-
+! Armor training
+{{!}} {{{armor|}}}
+}}
+{{#if:{{{weapon_mastery|}}}|
+{{!}}-
+! Weapon Mastery
+{{!}} {{{weapon_mastery|}}}
+}}
+{{#if:{{{spellcasting_ability|}}}|
+{{!}}-
+! Spellcasting ability
+{{!}} {{{spellcasting_ability|}}}
+}}
+{{#if:{{{subclass_level|}}}|
+{{!}}-
+! Subclass level
+{{!}} {{{subclass_level|}}}
+}}
+|}
+{{#if:{{{equipment|}}}|
+== Starting equipment ==
+{{{equipment}}}
+}}
+{{#if:{{{features|}}}|
+== Features ==
+{{{features}}}
+}}
+{{#if:{{{subclasses|}}}|
+== Subclasses ==
+{{{subclasses}}}
+}}
+[[Category:E5.5 class features]]
+</includeonly>

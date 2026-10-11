@@ -1,0 +1,18 @@
+<noinclude>
+Infobox for a game system's page. The page title is the system's key in [[Module:Systems]], such as <code>E5</code>.
+Systems are added in git with their stat block layouts, so an admin creates the page with just <code><nowiki>{{System}}</nowiki></code> and writes house rules below it.
+
+<templatedata>
+{
+	"description": "Infobox for a game system's page, such as E5. Takes no parameters.",
+	"params": {},
+	"format": "block"
+}
+</templatedata>
+</noinclude><includeonly>{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#invoke:Campaign|systemRows}}
+|}
+[[Category:Systems]]
+</includeonly>

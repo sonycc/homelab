@@ -37,7 +37,7 @@ Until you're a Player, you can't edit other pages, create pages outside your use
 
 You don't have to wait for the role to start writing.
 
-1. Go to `Special:MyPage` and click **Create** to make your user page. A line or two about yourself is plenty.
+1. Make your player profile. Until you do, the Main Page takes you straight to its form. You can also use the **Create or edit profile** box on `Category:Players`, with your username exactly as you sign in. A display name and pronouns are plenty. Until you have a profile, you can't be picked as the player of a character.
 2. Create a draft page under it, such as `User:YourName/Thorn`, and write your character's backstory there.
 3. Once you're a Player, make the real character page with the **Create or edit character** box on `Category:Characters`. Paste your backstory into the large box below the form.
 

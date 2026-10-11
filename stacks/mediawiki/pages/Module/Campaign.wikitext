@@ -1,0 +1,112 @@
+-- Links worked out from the Campaigns Cargo table:
+-- a character's world and system from its campaign, a system's campaigns and worlds,
+-- and a player's characters and campaigns.
+local systems = mw.loadData('Module:Systems')
+
+local p = {}
+
+local LIMIT = 5000
+
+local function norm(name)
+	name = name and mw.text.trim(name)
+	if not name or name == '' then return nil end
+	local title = mw.title.new(name)
+	return title and title.prefixedText
+end
+
+local function campaigns()
+	return mw.ext.cargo.query('Campaigns', '_pageName=page,world=world,system=system', { orderBy = '_pageName', limit = LIMIT })
+end
+
+local function row(label, cell)
+	return cell and '|-\n! ' .. label .. '\n| ' .. cell or nil
+end
+
+local function links(names)
+	if #names == 0 then return nil end
+	table.sort(names)
+	local out = {}
+	for i, name in ipairs(names) do
+		out[i] = '[[' .. name .. ']]'
+	end
+	return table.concat(out, ', ')
+end
+
+local function rows(list)
+	local out = {}
+	for _, r in ipairs(list) do
+		if r then table.insert(out, r) end
+	end
+	return table.concat(out, '\n')
+end
+
+-- World and System rows for a character. Argument 1 is its campaign.
+function p.characterRows(frame)
+	local campaign = norm(frame.args[1])
+	if not campaign then return '' end
+	for _, c in ipairs(campaigns()) do
+		if norm(c.page) == campaign then
+			local world, system = norm(c.world), norm(c.system)
+			return rows({
+				row('World', world and '[[' .. world .. ']]'),
+				row('System', system and '[[' .. system .. ']]'),
+			})
+		end
+	end
+	return ''
+end
+
+-- Characters, Plays in and Game master of rows for a player's profile. Argument 1 is the username.
+function p.playerRows(frame)
+	local name = mw.text.trim(frame.args[1] or '')
+	if name == '' then return '' end
+	local characters, plays, seen, runs = {}, {}, {}, {}
+	for _, c in ipairs(mw.ext.cargo.query('Characters', '_pageName=page,player=player,campaign=campaign', { orderBy = '_pageName', limit = LIMIT })) do
+		if mw.text.trim(c.player or '') == name then
+			table.insert(characters, norm(c.page))
+			local campaign = norm(c.campaign)
+			if campaign and not seen[campaign] then
+				seen[campaign] = true
+				table.insert(plays, campaign)
+			end
+		end
+	end
+	for _, c in ipairs(mw.ext.cargo.query('Campaigns', '_pageName=page,gm=gm', { orderBy = '_pageName', limit = LIMIT })) do
+		if mw.text.trim(c.gm or '') == name then
+			table.insert(runs, norm(c.page))
+		end
+	end
+	return rows({
+		row('Characters', links(characters)),
+		row('Plays in', links(plays)),
+		row('Game master of', links(runs)),
+	})
+end
+
+-- Infobox rows for a system's own page.
+function p.systemRows(frame)
+	local here = mw.title.getCurrentTitle().prefixedText
+	local info = systems[here]
+	if not info then
+		return row('Error', '<strong class="error">"' .. here .. '" is not in Module:Systems, so it has no stat block layout.</strong>')
+	end
+	local names, worlds, seen = {}, {}, {}
+	for _, c in ipairs(campaigns()) do
+		if norm(c.system) == here then
+			table.insert(names, norm(c.page))
+			local world = norm(c.world)
+			if world and not seen[world] then
+				seen[world] = true
+				table.insert(worlds, world)
+			end
+		end
+	end
+	return rows({
+		row('Name', info.name),
+		row('Family', info.family),
+		row('Campaigns', links(names)),
+		row('Worlds', links(worlds)),
+	})
+end
+
+return p

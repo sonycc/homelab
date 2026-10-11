@@ -1,0 +1,15 @@
+{{#default_form:World}}
+Worlds: settings, each played in any number of systems. Every page made with [[Form:World]] lands here.
+
+Each world is the root of its own places. This category sits inside [[:Category:Places]], so worlds are offered wherever a place is picked.
+
+{{#forminput:form=World|autocomplete on category=Worlds|button text=Create or edit world}}
+
+== All worlds ==
+{{#cargo_query:tables=Worlds
+|fields=_pageName=World,summary=Summary
+|order by=_pageName
+|format=table
+|limit=500
+}}
+[[Category:Places]]

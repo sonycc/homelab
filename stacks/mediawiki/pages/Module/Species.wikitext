@@ -1,0 +1,82 @@
+-- The Systems cell of Template:Species and Template:Class, built from their {{Species system}} or {{Class system}} rows,
+-- and the species or class a rules page such as Human (E5) belongs to.
+-- A system listed more than once shows once, playable if any of its rows is, with an error.
+local p = {}
+
+-- Private-use characters delimit each row inside Template:Species's argument.
+local OPEN, MID, CLOSE = '\238\128\128', '\238\128\129', '\238\128\130'
+
+local function yes(v)
+	v = mw.ustring.lower(mw.text.trim(v or ''))
+	return v == 'yes' or v == 'true' or v == '1'
+end
+
+-- Called by Template:Species system and Template:Class system; reads that template's arguments.
+function p.row(frame)
+	local args = frame:getParent().args
+	local system = mw.text.trim(args.system or '')
+	if system == '' then return '' end
+	return OPEN .. system .. MID .. (yes(args.playable) and '1' or '0') .. CLOSE
+end
+
+-- Argument 1 is the in_systems parameter, holding the rows.
+-- noun names the categories, rules the rules form, mark the playable label and repeats the error category.
+-- Each defaults to the species one.
+function p.systems(frame)
+	local noun = frame.args.noun or 'species'
+	local rules = frame.args.rules or 'species traits'
+	local mark = frame.args.mark or 'playable species'
+	local repeats = frame.args.repeats or 'Species with repeated systems'
+	local order, playable, count, repeated = {}, {}, {}, {}
+	for system, flag in (frame.args[1] or ''):gmatch(OPEN .. '(.-)' .. MID .. '(.-)' .. CLOSE) do
+		if count[system] then
+			if count[system] == 1 then table.insert(repeated, system) end
+			count[system] = count[system] + 1
+		else
+			count[system] = 1
+			table.insert(order, system)
+		end
+		playable[system] = playable[system] or flag == '1'
+	end
+	table.sort(order)
+
+	local here = mw.title.getCurrentTitle().prefixedText
+	local out = {}
+	for _, system in ipairs(order) do
+		-- Each line links to the system's rules page, and opens its form while that doesn't exist yet.
+		local link = frame:callParserFunction('#formredlink', {
+			'target=' .. here .. ' (' .. system .. ')',
+			'form=' .. system .. ' ' .. rules,
+			'link text=' .. system,
+		})
+		table.insert(out, '<div>' .. link .. (playable[system] and ', ' .. mark or '') .. '</div>'
+			.. '[[Category:' .. system .. ' ' .. noun .. ']]'
+			.. (playable[system] and '[[Category:' .. system .. ' playable ' .. noun .. ']]' or ''))
+	end
+	if #repeated > 0 then
+		table.sort(repeated)
+		table.insert(out, '<strong class="error">Listed more than once: ' .. table.concat(repeated, ', ')
+			.. '. Remove the extra rows with Edit with form.</strong>[[Category:' .. repeats .. ']]')
+	end
+	return table.concat(out)
+end
+
+-- The heritage pages of the ancestry a PF2 rules page such as Elf (PF2) belongs to, as a list.
+function p.heritages(frame)
+	local ancestry = p.hub(frame)
+	local out = {}
+	for _, row in ipairs(mw.ext.cargo.query('Heritages', '_pageName=page,ancestry=ancestry', { orderBy = '_pageName', limit = 5000 })) do
+		if mw.text.trim(row.ancestry or '') == ancestry then
+			table.insert(out, '* [[' .. row.page .. ']]')
+		end
+	end
+	return table.concat(out, '\n')
+end
+
+-- The species or class a rules page belongs to: Human for Human (E5).
+function p.hub(frame)
+	local title = mw.title.getCurrentTitle().prefixedText
+	return (title:gsub('%s*%b()$', ''))
+end
+
+return p

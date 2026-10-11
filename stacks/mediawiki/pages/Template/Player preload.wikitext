@@ -1,0 +1,11 @@
+<noinclude>
+Pre-filled text for the '''About you''' box of [[Form:Player]].
+<code>subst:</code> turns into the player's username when the profile is first saved, so the links name that player.
+</noinclude><includeonly>A few words about yourself.
+
+== My current characters ==
+* {{#formredlink:target={{subst:ROOTPAGENAME}}-char_1|form=Character}}
+* {{#formredlink:target={{subst:ROOTPAGENAME}}-char_2|form=Character}}
+
+== My previous characters ==
+* {{#formredlink:target={{subst:ROOTPAGENAME}}-char_3|form=Character}}</includeonly>

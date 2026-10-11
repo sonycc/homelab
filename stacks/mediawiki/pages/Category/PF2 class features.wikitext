@@ -1,0 +1,13 @@
+{{#default_form:PF2 class features}}
+Pathfinder 2nd edition rules for each class, one page per class, such as Wizard (PF2). Each class' page links to its own.
+
+{{#forminput:form=PF2 class features|button text=Create or edit PF2 class rules}}
+
+== All PF2 class rules ==
+{{#cargo_query:tables=PF2_class_features
+|fields=_pageName=Page,class=Class,key_attribute=Key attribute,hit_points=Hit points,perception=Perception,saving_throws=Saving throws,skills=Skills,attacks=Attacks,defenses=Defenses,class_dc=Class DC,spellcasting=Spellcasting,subclass_name=Subclass name
+|order by=class
+|format=table
+|limit=500
+}}
+[[Category:Classes| PF2 rules]]

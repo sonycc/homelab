@@ -1,0 +1,30 @@
+<noinclude>
+Create or edit a CoC 7 occupation: {{#forminput:form=Occupation|autocomplete on category=Occupations|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|Occupation}}}
+{| class="formtable"
+|-
+! Occupation Skill Points:
+| {{{field|skill_points|placeholder=EDU × 4}}}
+|-
+! Credit Rating:
+| {{{field|credit_rating|placeholder=30–70}}}
+|-
+! Suggested Contacts:
+| {{{field|contacts|placeholder=Booksellers, antique dealers}}}
+|-
+! Skills:
+| {{{field|skills|input type=textarea|rows=4|editor=wikieditor}}}
+|}
+{{{end template}}}
+
+'''Description and notes:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

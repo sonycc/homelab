@@ -1,0 +1,4 @@
+Every species a player can pick in [[PF2]], set by '''Playable species''' on its row in [[:Category:Species]].
+PC stat blocks in PF2 pick their species from this list.
+
+[[Category:Species| PF2 playable]]

@@ -1,0 +1,82 @@
+<noinclude>
+Form section for [[Template:PF2 stat block]], included by [[Template:Stats form]].
+It saves into the page type's own template: Character, NPC or Creature.
+Argument 1 is the page type, PC, NPC or Creature, and hides the rows that don't apply to it.
+The form tags are in nowiki so Page Forms reads them after this page is transcluded.
+</noinclude><includeonly><nowiki>{{{for template|PF2 stat block|multiple|embed in field=</nowiki>{{#switch:{{{1|}}}|PC=Character|#default={{{1|}}}}}<nowiki>[pf2]|label=PF2|add button text=Add PF2 stats|maximum instances=1}}}</nowiki>
+{| class="formtable"
+|-
+! Level:
+| <nowiki>{{{field|level|size=3|default=1}}}</nowiki>
+{{#switch:{{{1|}}}|Creature=|#default=
+{{!}}-
+! Ancestry:
+{{!}} {{#ifeq:{{{1|}}}|PC|<nowiki>{{{field|ancestry|input type=combobox|values from category=PF2 playable species|existing values only}}}</nowiki>|<nowiki>{{{field|ancestry|input type=combobox|values from category=PF2 species|existing values only}}}</nowiki>}} <span class="pf-create-new">[[Special:FormStart/Species|Create new]]</span>
+{{!}}-
+! Heritage:
+{{!}} <nowiki>{{{field|heritage|input type=combobox|values from category=PF2 Heritages}}}</nowiki> suggests heritage pages, and takes any name
+{{!}}-
+! Class:
+{{!}} {{#ifeq:{{{1|}}}|PC|<nowiki>{{{field|class|input type=combobox|values from category=PF2 playable classes|existing values only}}}</nowiki>|<nowiki>{{{field|class|input type=combobox|values from category=PF2 classes|existing values only}}}</nowiki>}} <span class="pf-create-new">[[Special:FormStart/Class|Create new]]</span>
+}}
+{{#switch:{{{1|}}}|PC=|#default=
+{{!}}-
+! Rarity:
+{{!}} <nowiki>{{{field|rarity|input type=dropdown|values=Common,Uncommon,Rare,Unique|default=Common}}}</nowiki>
+}}
+|-
+! Size:
+| <nowiki>{{{field|size|input type=dropdown|values=Tiny,Small,Medium,Large,Huge,Gargantuan|default=Medium}}}</nowiki>
+|-
+! Traits:
+| <nowiki>{{{field|traits|input type=tokens|values from category=PF2 traits}}}</nowiki>
+|-
+! Perception:
+| <nowiki>{{{field|perception|size=3}}}</nowiki> <nowiki>{{{field|senses|placeholder=darkvision}}}</nowiki>
+|-
+! Languages:
+| <nowiki>{{{field|languages}}}</nowiki>
+|-
+! Skills:
+| <nowiki>{{{field|skills|placeholder=Athletics +9, Stealth +7}}}</nowiki>
+|-
+! Str / Dex / Con:
+| <nowiki>{{{field|strength|size=3}}}</nowiki> <nowiki>{{{field|dexterity|size=3}}}</nowiki> <nowiki>{{{field|constitution|size=3}}}</nowiki> modifiers
+|-
+! Int / Wis / Cha:
+| <nowiki>{{{field|intelligence|size=3}}}</nowiki> <nowiki>{{{field|wisdom|size=3}}}</nowiki> <nowiki>{{{field|charisma|size=3}}}</nowiki> modifiers
+|-
+! Items:
+| <nowiki>{{{field|items}}}</nowiki>
+|-
+! Automatic abilities:
+| <nowiki>{{{field|automatic_abilities|input type=textarea|rows=2}}}</nowiki>
+|-
+! AC / Fort / Ref / Will:
+| <nowiki>{{{field|armor_class|size=3}}}</nowiki> <nowiki>{{{field|fortitude|size=3}}}</nowiki> <nowiki>{{{field|reflex|size=3}}}</nowiki> <nowiki>{{{field|will|size=3}}}</nowiki>
+|-
+! HP:
+| <nowiki>{{{field|hit_points|size=4}}}</nowiki>
+|-
+! Immunities:
+| <nowiki>{{{field|immunities}}}</nowiki>
+|-
+! Weaknesses:
+| <nowiki>{{{field|weaknesses}}}</nowiki>
+|-
+! Resistances:
+| <nowiki>{{{field|resistances}}}</nowiki>
+|-
+! Defensive abilities:
+| <nowiki>{{{field|defensive_abilities|input type=textarea|rows=2}}}</nowiki>
+|-
+! Speed:
+| <nowiki>{{{field|speed|placeholder=25 feet, climb 15 feet}}}</nowiki>
+|-
+! Strikes and actions:
+| <nowiki>{{{field|actions|input type=textarea|rows=4|editor=wikieditor}}}</nowiki>
+|-
+! Spells:
+| <nowiki>{{{field|spells|input type=textarea|rows=2}}}</nowiki>
+|}
+<nowiki>{{{end template}}}</nowiki></includeonly>

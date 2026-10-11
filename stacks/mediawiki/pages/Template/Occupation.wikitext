@@ -1,0 +1,89 @@
+<noinclude>
+Infobox and Cargo row for a CoC 7 occupation, such as Antiquarian. Create pages with [[Form:Occupation]].
+
+{{#cargo_declare:_table=Occupations
+|credit_rating=String
+|skill_points=String
+|contacts=String
+|summary=Text
+|skills=Wikitext
+}}
+
+<templatedata>
+{
+	"description": "A CoC 7 occupation, such as Antiquarian. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"credit_rating": {
+			"label": "Credit Rating",
+			"description": "Its range, such as 30–70",
+			"type": "line"
+		},
+		"skill_points": {
+			"label": "Occupation skill points",
+			"description": "Such as EDU × 4",
+			"type": "line"
+		},
+		"contacts": {
+			"label": "Suggested contacts",
+			"description": "Such as booksellers, antique dealers",
+			"type": "line"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		},
+		"skills": {
+			"label": "Occupation skills",
+			"description": "Its skills. Shown in the infobox",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"credit_rating",
+		"skill_points",
+		"contacts",
+		"summary",
+		"skills"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Occupations
+|credit_rating={{{credit_rating|}}}
+|skill_points={{{skill_points|}}}
+|contacts={{{contacts|}}}
+|summary={{{summary|}}}
+|skills={{{skills|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{skill_points|}}}|
+{{!}}-
+! Occupation Skill Points
+{{!}} {{{skill_points|}}}
+}}
+{{#if:{{{credit_rating|}}}|
+{{!}}-
+! Credit Rating
+{{!}} {{{credit_rating|}}}
+}}
+{{#if:{{{contacts|}}}|
+{{!}}-
+! Suggested Contacts
+{{!}} {{{contacts|}}}
+}}
+{{#if:{{{skills|}}}|
+{{!}}-
+! Skills
+{{!}}
+{{{skills}}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:Occupations]]
+</includeonly>

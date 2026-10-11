@@ -1,0 +1,4 @@
+Every species that exists in [[CoC 7]], set by a row on its page in [[:Category:Species]].
+NPC stat blocks in CoC 7 pick their species from this list.
+
+[[Category:Species| CoC 7]]

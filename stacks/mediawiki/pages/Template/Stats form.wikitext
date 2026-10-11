@@ -1,0 +1,9 @@
+<noinclude>
+Every system's stat block section, defined after the free text.
+They show in the form at the holding fields from [[Template:Stats fields]], inside the page type's own template.
+A new system's form section is added here, and its holding field in [[Template:Stats fields]].
+Argument 1 is the page type, PC, NPC or Creature, passed on to each section.
+</noinclude><includeonly>{{E5 stat block form|{{{1|}}}}}
+{{E5.5 stat block form|{{{1|}}}}}
+{{PF2 stat block form|{{{1|}}}}}
+{{CoC 7 stat block form|{{{1|}}}}}</includeonly>

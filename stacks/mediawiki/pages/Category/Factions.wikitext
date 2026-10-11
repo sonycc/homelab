@@ -1,0 +1,12 @@
+{{#default_form:Faction}}
+Factions. Every page made with [[Form:Faction]] lands here.
+
+{{#forminput:form=Faction|autocomplete on category=Factions|button text=Create or edit faction}}
+
+== All factions ==
+{{#cargo_query:tables=Factions
+|fields=_pageName=Faction,world=World,type=Type,seat=Seat,leader=Leader,status=Status
+|order by=world, _pageName
+|format=table
+|limit=500
+}}

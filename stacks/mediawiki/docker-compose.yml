@@ -31,11 +31,14 @@ x-mediawiki-env: &mediawiki-env
 
   MW_SECRET_KEY: ${MW_SECRET_KEY:?MW_SECRET_KEY not set}
 
-  # Both containers notify: edits made by jobs, such as Special:ReplaceText, run in mediawiki-tasks.
-  DISCORD_WEBHOOK_URL_NOTIFICATIONS: ${DISCORD_WEBHOOK_URL_NOTIFICATIONS:-}
-  DISCORD_MENTIONS_SIGNUP: ${DISCORD_MENTIONS_SIGNUP:-}
-  DISCORD_MENTIONS_APPROVAL: ${DISCORD_MENTIONS_APPROVAL:-}
-  DISCORD_MENTIONS_GIT_PAGE_EDIT: ${DISCORD_MENTIONS_GIT_PAGE_EDIT:-}
+  # Both containers post: edits and links refreshes made by jobs run in mediawiki-tasks.
+  DISCORD_WEBHOOK_URL_NOTIFICATIONS:  ${DISCORD_WEBHOOK_URL_NOTIFICATIONS:-}
+  DISCORD_MENTIONS_SIGNUP:            ${DISCORD_MENTIONS_SIGNUP:-}
+  DISCORD_MENTIONS_APPROVAL:          ${DISCORD_MENTIONS_APPROVAL:-}
+  DISCORD_MENTIONS_GIT_PAGE_EDIT:     ${DISCORD_MENTIONS_GIT_PAGE_EDIT:-}
+  DISCORD_WEBHOOK_URL_WARNINGS:       ${DISCORD_WEBHOOK_URL_WARNINGS:-}
+  DISCORD_MENTIONS_SCRIPT_ERROR:      ${DISCORD_MENTIONS_SCRIPT_ERROR:-}
+  DISCORD_MENTIONS_EXCEPTION:         ${DISCORD_MENTIONS_EXCEPTION:-}
 
 services:
   mediawiki:
@@ -47,11 +50,11 @@ services:
 
     environment:
       <<: *mediawiki-env
+      MW_CAPTCHA_QUESTION: ${MW_CAPTCHA_QUESTION:?MW_CAPTCHA_QUESTION not set}
+      MW_CAPTCHA_ANSWERS: ${MW_CAPTCHA_ANSWERS:?MW_CAPTCHA_ANSWERS not set}
       # First-boot install only. Later changes do nothing; see README.md.
       MW_ADMIN_USER: ${MW_ADMIN_USER:?MW_ADMIN_USER not set}
       MW_ADMIN_PASSWORD: ${MW_ADMIN_PASSWORD:?MW_ADMIN_PASSWORD not set}
-      MW_CAPTCHA_QUESTION: ${MW_CAPTCHA_QUESTION:?MW_CAPTCHA_QUESTION not set}
-      MW_CAPTCHA_ANSWERS: ${MW_CAPTCHA_ANSWERS:?MW_CAPTCHA_ANSWERS not set}
 
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
@@ -97,7 +100,6 @@ services:
       IMAGES_CHECK_INTERVAL: ${IMAGES_CHECK_INTERVAL:-3600}
       BACKUP_MAX_AGE_SECONDS: ${BACKUP_MAX_AGE_SECONDS:-7200}
       JOB_BATCH: ${JOB_BATCH:-50}
-      DISCORD_WEBHOOK_URL_WARNINGS: ${DISCORD_WEBHOOK_URL_WARNINGS:-}
       DISCORD_MENTIONS_BACKUP_FAILURE: ${DISCORD_MENTIONS_BACKUP_FAILURE:-}
 
     volumes:
@@ -119,7 +121,7 @@ services:
 
     # Unhealthy means the archiving loop stopped working, not that images changed.
     healthcheck:
-      test: ["CMD-SHELL", "[ -f /backups/.last-success ] && [ $$(( $$(date +%s) - $$(stat -c %Y /backups/.last-success) )) -lt $${BACKUP_MAX_AGE_SECONDS:-7200} ]"]
+      test: ["CMD-SHELL", "[ -f /backups/.last-success ] && [ $$(( $$(date +%s) - $$(stat -c %Y /backups/.last-success) )) -lt $${BACKUP_MAX_AGE_SECONDS} ]"]
       interval: 5m
       timeout: 10s
       retries: 2

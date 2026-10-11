@@ -1,0 +1,13 @@
+{{#default_form:PF2 species traits}}
+Pathfinder 2nd edition rules for each species, one page per species, such as Human (PF2). Each species' page links to its own.
+
+{{#forminput:form=PF2 species traits|button text=Create or edit PF2 species rules}}
+
+== All PF2 species rules ==
+{{#cargo_query:tables=PF2_species_traits
+|fields=_pageName=Page,species=Species,hit_points=Hit points,size=Size,speed=Speed,boosts=Attribute boosts,flaw=Attribute flaw,languages=Languages,traits=Traits
+|order by=species
+|format=table
+|limit=500
+}}
+[[Category:Species| PF2 rules]]

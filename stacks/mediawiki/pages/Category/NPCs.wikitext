@@ -1,0 +1,12 @@
+{{#default_form:NPC}}
+Non-player characters. Every page made with [[Form:NPC]] lands here.
+
+{{#forminput:form=NPC|autocomplete on category=NPCs|button text=Create or edit NPC}}
+
+== All NPCs ==
+{{#cargo_query:tables=NPCs
+|fields=_pageName=NPC,world=World,campaign=Campaign,occupation=Occupation,faction=Faction,location=Location,status=Status
+|order by=world, _pageName
+|format=table
+|limit=500
+}}

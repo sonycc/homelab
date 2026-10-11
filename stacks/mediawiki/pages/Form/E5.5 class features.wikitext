@@ -1,0 +1,57 @@
+<noinclude>
+Create or edit a class' E5.5 rules, on a page titled after it, such as Wizard (E5.5): {{#forminput:form=E5.5 class features|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|E5.5 class features}}}
+{| class="formtable"
+|-
+! Primary ability:
+| {{{field|primary_ability|placeholder=Intelligence}}}
+|-
+! Hit point die:
+| {{{field|hit_die|input type=dropdown|values=d6,d8,d10,d12}}}
+|-
+! Saving throw proficiencies:
+| {{{field|saving_throws|placeholder=Intelligence, Wisdom}}}
+|-
+! Skill proficiencies:
+| {{{field|skills|placeholder=Choose 2: Arcana, History, Insight}}}
+|-
+! Weapon proficiencies:
+| {{{field|weapons|placeholder=Simple weapons}}}
+|-
+! Tool proficiencies:
+| {{{field|tools|placeholder=None}}}
+|-
+! Armor training:
+| {{{field|armor|placeholder=None}}}
+|-
+! Weapon Mastery:
+| {{{field|weapon_mastery|placeholder=2 kinds of weapons}}}
+|-
+! Spellcasting ability:
+| {{{field|spellcasting_ability|placeholder=Intelligence}}}
+|-
+! Subclass level:
+| {{{field|subclass_level|size=3}}}
+|-
+! Starting equipment:
+| {{{field|equipment|input type=textarea|rows=4|editor=wikieditor}}}
+|-
+! Features:
+| {{{field|features|input type=textarea|rows=4|editor=wikieditor}}}
+|-
+! Subclasses:
+| {{{field|subclasses|input type=textarea|rows=4|editor=wikieditor}}}
+|}
+{{{end template}}}
+
+'''Description and notes:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

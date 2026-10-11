@@ -1,0 +1,13 @@
+{{#default_form:CoC 7 species traits}}
+Call of Cthulhu 7th edition rules for each species, one page per species, such as Human (CoC 7). Each species' page links to its own.
+
+{{#forminput:form=CoC 7 species traits|button text=Create or edit CoC 7 species rules}}
+
+== All CoC 7 species rules ==
+{{#cargo_query:tables=CoC7_species_traits
+|fields=_pageName=Page,species=Species,summary=Summary
+|order by=species
+|format=table
+|limit=500
+}}
+[[Category:Species| CoC 7 rules]]

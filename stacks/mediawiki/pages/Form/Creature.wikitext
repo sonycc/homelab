@@ -1,0 +1,36 @@
+<noinclude>
+Create or edit a creature: {{#forminput:form=Creature|autocomplete on category=Creatures|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|Creature}}}
+{| class="formtable"
+|-
+! Type:
+| {{{field|creature_type|input type=combobox|cargo table=Creatures|cargo field=creature_type}}}
+|-
+! World:
+| {{{field|world|input type=combobox|values from category=Worlds}}} empty for any world
+|-
+! Habitat:
+| {{{field|habitat|input type=tokens|values from category=Places}}}
+|-
+! Image:
+| {{{field|image|uploadable|image preview}}}
+|-
+! Summary:
+| {{{field|summary|input type=textarea|rows=2}}}
+|}
+{{Stats fields}}
+{{{end template}}}
+
+'''Description and lore:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor}}}
+
+{{Stats form|Creature}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

@@ -1,0 +1,4 @@
+Every class that exists in [[PF2]], set by a row on its page in [[:Category:Classes]].
+NPC stat blocks in PF2 pick their class from this list.
+
+[[Category:Classes| PF2]]

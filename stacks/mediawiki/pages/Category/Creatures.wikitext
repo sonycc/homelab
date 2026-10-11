@@ -1,0 +1,12 @@
+{{#default_form:Creature}}
+Creatures and monsters, with stats for any system. Every page made with [[Form:Creature]] lands here.
+
+{{#forminput:form=Creature|autocomplete on category=Creatures|button text=Create or edit creature}}
+
+== All creatures ==
+{{#cargo_query:tables=Creatures
+|fields=_pageName=Creature,creature_type=Type,world=World,habitat=Habitat
+|order by=_pageName
+|format=table
+|limit=500
+}}

@@ -1,0 +1,136 @@
+<noinclude>
+Infobox and Cargo row for a player character. Create pages with [[Form:Character]].
+The world and system come from the campaign. Species, class and level are per system, in each stat block. The stats go in its e5, e5_5, pf2 and coc7 parameters, shown as tabs under the infobox.
+
+{{#cargo_declare:_table=Characters
+|player=String
+|campaign=Page
+|faction=List (,) of Page
+|status=String (allowed values=Alive,Dead,Retired,Missing)
+|portrait=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A player character. World and system come from the campaign. Species, class, level and stats go in one stat block per system, shown as tabs under the infobox. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"player": {
+			"label": "Player",
+			"description": "Username of the player, as on their profile",
+			"type": "wiki-user-name",
+			"required": true
+		},
+		"campaign": {
+			"label": "Campaign",
+			"description": "The campaign the character is played in",
+			"type": "wiki-page-name"
+		},
+		"faction": {
+			"label": "Faction",
+			"description": "Factions the character belongs to, separated by commas",
+			"type": "string"
+		},
+		"status": {
+			"label": "Status",
+			"description": "Whether the character is still played",
+			"type": "line",
+			"suggestedvalues": [
+				"Alive",
+				"Dead",
+				"Retired",
+				"Missing"
+			]
+		},
+		"portrait": {
+			"label": "Portrait",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		},
+		"e5": {
+			"label": "E5 stat block",
+			"description": "{{E5 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"e5_5": {
+			"label": "E5.5 stat block",
+			"description": "{{E5.5 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"pf2": {
+			"label": "PF2 stat block",
+			"description": "{{PF2 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		},
+		"coc7": {
+			"label": "CoC 7 stat block",
+			"description": "{{CoC 7 stat block|...}}, shown as a tab under the infobox",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"player",
+		"campaign",
+		"faction",
+		"status",
+		"portrait",
+		"summary",
+		"e5",
+		"e5_5",
+		"pf2",
+		"coc7"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Characters
+|player={{{player|}}}
+|campaign={{{campaign|}}}
+|faction={{{faction|}}}
+|status={{{status|}}}
+|portrait={{{portrait|}}}
+|summary={{{summary|}}}
+}}
+<div style="float:right; clear:right; width:26em; max-width:100%; margin:0 0 1em 1em">
+{| class="wikitable" style="width:100%; margin:0"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{portrait|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{portrait}}}|250px]]
+}}
+{{#if:{{{player|}}}|
+{{!}}-
+! Player
+{{!}} {{#if:{{{player|}}}|[[User:{{{player}}}|{{{player}}}]]}}
+}}
+{{#if:{{{campaign|}}}|
+{{!}}-
+! Campaign
+{{!}} {{#if:{{{campaign|}}}|{{#formredlink:target={{{campaign}}}|form=Campaign}}}}
+}}
+{{#invoke:Campaign|characterRows|{{{campaign|}}}}}
+{{#if:{{{faction|}}}|
+{{!}}-
+! Faction
+{{!}} {{#arraymap:{{{faction|}}}|,|@@@@|{{#formredlink:target=@@@@|form=Faction}}|,&#32;}}
+}}
+{{#if:{{{status|}}}|
+{{!}}-
+! Status
+{{!}} {{{status|}}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+{{#if:{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}|{{#invoke:Stats|tabs|{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}}}}}
+</div>
+[[Category:Characters]]
+</includeonly>

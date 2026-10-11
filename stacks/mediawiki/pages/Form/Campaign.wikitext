@@ -1,0 +1,42 @@
+<noinclude>
+Create or edit a campaign: {{#forminput:form=Campaign|autocomplete on category=Campaigns|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|Campaign}}}
+{| class="formtable"
+|-
+! World:
+| {{{field|world|input type=combobox|values from category=Worlds|mandatory}}}
+|-
+! System:
+| {{{field|system|input type=dropdown|values from category=Systems}}}
+|-
+! Game master:
+| {{{field|gm|input type=combobox|cargo table=Players|cargo field=username|default=current user}}}
+|-
+! Status:
+| {{{field|status|input type=dropdown|values=Planned,Active,Paused,Finished|default=Active}}}
+|-
+! Started:
+| {{{field|started|input type=datepicker}}}
+|-
+! Ended:
+| {{{field|ended|input type=datepicker}}}
+|-
+! Image:
+| {{{field|image|uploadable|image preview}}}
+|-
+! Summary:
+| {{{field|summary|input type=textarea|rows=2}}}
+|}
+{{{end template}}}
+
+'''Overview and notes:'''
+
+{{{standard input|free text|rows=20|editor=wikieditor}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

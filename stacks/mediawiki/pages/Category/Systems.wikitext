@@ -1,0 +1,3 @@
+Game systems with stat block layouts on this wiki. Each one is a tab on character, NPC and creature pages, grouped by family.
+
+Systems are added by an admin, in git: the system's entry in [[Module:Systems]], its stat block layout and its form section. The system's page then holds just <code><nowiki>{{System}}</nowiki></code>, followed by any house rules.

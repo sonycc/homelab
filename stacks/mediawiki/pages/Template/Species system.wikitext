@@ -1,0 +1,34 @@
+<noinclude>
+One system a species exists in, as a row on its page, written by [[Form:Species]] into [[Template:Species]].
+It stores the row, and hands it to [[Module:Species]], which lists it in the infobox and sets the categories:
+Category:<system> species, the list NPC stat blocks pick from,
+and when playable is ticked Category:<system> playable species, the list PC stat blocks pick from.
+
+{{#cargo_declare:_table=Species_systems
+|system=String
+|playable=Boolean
+}}
+
+<templatedata>
+{
+	"description": "One system a species exists in. Goes inside the in_systems parameter of {{Species}}. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"system": {
+			"label": "System",
+			"description": "A system page, such as E5",
+			"type": "wiki-page-name",
+			"required": true
+		},
+		"playable": {
+			"label": "Playable species",
+			"description": "Yes if a player can pick it in this system",
+			"type": "boolean"
+		}
+	},
+	"format": "inline"
+}
+</templatedata>
+</noinclude><includeonly>{{#if:{{{system|}}}|{{#cargo_store:_table=Species_systems
+|system={{{system}}}
+|playable={{{playable|No}}}
+}}{{#invoke:Species|row}}}}</includeonly>

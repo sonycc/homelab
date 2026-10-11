@@ -1,0 +1,30 @@
+<noinclude>
+Create or edit your player profile. Give your own username: {{#forminput:form=Player|namespace=User|button text=Create or edit|query string=wpSummary=initial profile creation}}
+</noinclude><includeonly>
+{{{for template|Player}}}
+{| class="formtable"
+|-
+! Display name:
+| {{{field|display_name}}}
+|-
+! Pronouns:
+| {{{field|pronouns|input type=combobox|values=she/her,he/him,they/them}}}
+|-
+! Image:
+| {{{field|image|uploadable|image preview}}}
+|-
+! Summary:
+| {{{field|summary|input type=textarea|rows=2}}}
+|}
+{{{end template}}}
+
+'''About you:'''
+
+{{{standard input|free text|rows=15|editor=wikieditor|preload=Template:Player preload}}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

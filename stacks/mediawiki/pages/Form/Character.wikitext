@@ -1,0 +1,39 @@
+<noinclude>
+Create or edit a character: {{#forminput:form=Character|autocomplete on category=Characters|button text=Create or edit}}
+</noinclude><includeonly>
+{{{for template|Character}}}
+{| class="formtable"
+|-
+! Player:
+| {{{field|player|input type=combobox|cargo table=Players|cargo field=username|default=current user|mandatory}}}
+|-
+! Campaign:
+| {{{field|campaign|input type=combobox|values from category=Campaigns}}}
+|-
+! Faction:
+| {{{field|faction|input type=tokens|values from category=Factions}}}
+|-
+! Status:
+| {{{field|status|input type=dropdown|values=Alive,Dead,Retired,Missing|default=Alive}}}
+|-
+! Portrait:
+| {{{field|portrait|uploadable|image preview}}}
+|-
+! Summary:
+| {{{field|summary|input type=textarea|rows=2}}}
+|}
+{{Stats fields}}
+{{{end template}}}
+
+'''Backstory and notes:'''
+
+{{{standard input|free text|rows=20|editor=wikieditor}}}
+
+{{Stats form|PC}}
+
+{{{standard input|summary|label=Give a short summary of the page edit you just did:}}}
+
+{{{standard input|minor edit}}} {{{standard input|watch}}}
+
+{{{standard input|save}}} {{{standard input|preview}}} {{{standard input|changes}}} {{{standard input|cancel}}}
+</includeonly>

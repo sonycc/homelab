@@ -1,0 +1,51 @@
+<noinclude>
+Old: stat tabs at the bottom of a character, NPC or creature page, from before they moved under the infobox.
+Kept so those pages still show their stats, and listed in [[:Category:Pages with old stat blocks]].
+To move one, in Edit source, put its <code>e5</code>, <code>e5_5</code>, <code>pf2</code> and <code>coc7</code> lines into the page's <code><nowiki>{{Character}}</nowiki></code>, <code><nowiki>{{NPC}}</nowiki></code> or <code><nowiki>{{Creature}}</nowiki></code>, then delete its <code><nowiki>{{Stats}}</nowiki></code> call.
+A <code>stats</code> line holds blocks from before the per-system split: give each block its system's line.
+
+<templatedata>
+{
+	"description": "The stat tabs at the bottom of a character, NPC or creature page, one tab per system. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"e5": {
+			"label": "E5 stat block",
+			"description": "{{E5 stat block|...}}",
+			"type": "content"
+		},
+		"e5_5": {
+			"label": "E5.5 stat block",
+			"description": "{{E5.5 stat block|...}}",
+			"type": "content"
+		},
+		"pf2": {
+			"label": "PF2 stat block",
+			"description": "{{PF2 stat block|...}}",
+			"type": "content"
+		},
+		"coc7": {
+			"label": "CoC 7 stat block",
+			"description": "{{CoC 7 stat block|...}}",
+			"type": "content"
+		},
+		"stats": {
+			"label": "Old stat blocks",
+			"description": "Pages saved before each system had its own parameter",
+			"type": "content",
+			"deprecated": "Edit with form and add the stat blocks again"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"e5",
+		"e5_5",
+		"pf2",
+		"coc7",
+		"stats"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#if:{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}{{{stats|}}}|
+== Statistics ==
+{{#invoke:Stats|tabs|{{{e5|}}}{{{e5_5|}}}{{{pf2|}}}{{{coc7|}}}{{{stats|}}}}}
+}}[[Category:Pages with old stat blocks]]</includeonly>

@@ -1,0 +1,11 @@
+<noinclude>
+The holding fields for every system's stat block, one per system.
+Character, NPC and Creature forms include it inside their own template, before its end, and [[Template:Stats form]] after the free text.
+Page Forms writes only one template into each holding field, so each system has its own.
+The stat sections show in the form where these fields are.
+</noinclude><includeonly>'''Statistics''', one block per system. All optional, and shown as tabs under the infobox:
+
+<nowiki>{{{field|e5|holds template}}}</nowiki>
+<nowiki>{{{field|e5_5|holds template}}}</nowiki>
+<nowiki>{{{field|pf2|holds template}}}</nowiki>
+<nowiki>{{{field|coc7|holds template}}}</nowiki></includeonly>

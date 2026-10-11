@@ -141,6 +141,8 @@ Titles are case-sensitive except for the first letter, and spaces and underscore
 
 Upload first at `Special:Upload`. Allowed types are png, jpg, jpeg, gif, webp, svg, pdf, mp3 and ogg. Then embed the file:
 
+Any file on [Wikimedia Commons](https://commons.wikimedia.org) works without uploading: use its name as it appears there, such as `[[File:NGC 2683 Spiral galaxy.jpg]]`, or type that name into a form's image field. Its file page here shows the author and licence from Commons. Paste the file name, never the web address.
+
 ```
 [[File:Thornwall map.jpg]]                                full size
 [[File:Thornwall map.jpg|thumb|300px|The keep in 1203]]   framed thumbnail with a caption
@@ -232,8 +234,7 @@ A template is a reusable snippet, like a component or a server-side include. You
 {{Character
  | player   = Mira
  | campaign = The Reach
- | class    = Wizard
- | level    = 5
+ | faction  = Iron Choir
  | status   = Alive
 }}
 ```
@@ -244,17 +245,22 @@ Only admins can create or change templates. To propose one, build it on a user p
 
 ### Forms and structured data
 
-Some page types have a form instead of free wikitext: player characters, NPCs, places, campaigns and factions, made with `Form:Character`, `Form:NPC`, `Form:Place`, `Form:Campaign` and `Form:Faction`. The **Create or edit** box on each type's category page, such as `Category:Places`, opens the form, and those pages get an **Edit with form** tab. A red link in an infobox opens the right form too.
+Some page types have a form instead of free wikitext: player characters, NPCs, creatures, places, worlds, factions and campaigns, each made with the form of the same name, such as `Form:NPC`. The **Create or edit** box on each type's category page, such as `Category:Places`, opens the form, and those pages get an **Edit with form** tab. A red link in an infobox opens the right form too.
 
-Places nest: every place names the place it's in, up to the root, `Cosmos`. A place's infobox shows its full path, the places directly inside it and every NPC and faction anywhere inside it. Under **Top level**, `Category:Places` lists places with no parent. Anything there besides `Cosmos` needs its **Located in** fixed.
+A world is a setting, and a system is a ruleset such as `E5` or `PF2`. A campaign picks one of each, and its characters follow it. NPCs, factions and places belong to a world.
+
+Places nest: every place names the place it's in, up to its world. A place's infobox shows its full path, the places directly inside it and every NPC, faction and creature anywhere inside it. Under **Not in any world**, `Category:Places` lists places whose chain stops before reaching a world, so their **Located in** needs fixing.
+
+Characters, NPCs and creatures can have stats for several systems. Each system gets its own section in the form, and the page shows them as tabs under the infobox, leaving the middle of the page for lore: family first, then edition, such as **DnD › E5**. A character's species, class and level are in each system's block too, since they differ between systems. Species are picked from `Category:Species`: each species page has a row per system it exists in, with **Playable species** ticked where a player can pick it. A PC's block offers only species playable in that system, and an NPC's every species in it. Creatures have none. A species page is a short hub: each system in its Systems box links to that system's rules page, such as `Human (PF2)`, made with the system's species form from that link. Classes in E5, E5.5 and PF2 work the same way: picked from `Category:Classes`, with **Playable class** ticked where a player can pick it, and rules pages such as `Wizard (E5)`. Species and class are search boxes that only accept an existing page, with a **Create new** link beside them. PF2 heritage and CoC occupation take any name, suggesting pages from `Category:PF2 Heritages` and `Category:Occupations`. In the stat block a name with no page yet is a red link, which opens its form. Values like ability modifiers, XP and proficiency bonus are worked out for you.
 
 The data in those forms is stored in tables you can query, so you can build index pages that never go out of date:
 
 ```
-{{#cargo_query:tables=Characters
- |fields=_pageName=Character,class=Class,level=Level,status=Status
- |where=campaign='The Reach'
- |order by=level DESC
+{{#cargo_query:tables=Characters,E5_stat_blocks
+ |join on=Characters._pageName=E5_stat_blocks._pageName
+ |fields=Characters._pageName=Character,E5_stat_blocks.class=Class,E5_stat_blocks.level=Level
+ |where=Characters.campaign='The Reach'
+ |order by=E5_stat_blocks.level DESC
  |format=table
 }}
 ```
@@ -281,7 +287,7 @@ When you set a player's licence, remove the line they wrote. A licence label gra
 
 ### Pages managed outside the wiki
 
-A few pages are maintained by the admin in files and re-imported on every update: the `Category:`, `Form:` and `Template:` pages for characters, NPCs, places, campaigns and factions, `Module:Place` and `Template:License`. **Edits you make to them on the wiki are overwritten.** Ask the admin to change them instead. After an update, those category pages may show as awaiting approval again, so just approve them.
+A few pages are maintained by the admin in files and re-imported on every update: the `Category:`, `Form:`, `Template:` and `Module:` pages behind every form, the stat block templates and `Template:License`. **Edits you make to them on the wiki are overwritten.** Ask the admin to change them instead. They're approved automatically when they're imported.
 
 ## Styling with HTML and CSS
 

@@ -1,0 +1,50 @@
+<noinclude>
+Infobox and Cargo row for a world: a setting, which campaigns can play in any system. Create pages with [[Form:World]].
+Worlds are the roots of the place tree. [[Module:Place]] lists what is in each one.
+
+{{#cargo_declare:_table=Worlds
+|image=File
+|summary=Text
+}}
+
+<templatedata>
+{
+	"description": "A world: a setting, which campaigns can play in any system. Root of its own places. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"image": {
+			"label": "Image",
+			"description": "A file uploaded here, or any Wikimedia Commons file name",
+			"type": "wiki-file-name"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"image",
+		"summary"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Worlds
+|image={{{image|}}}
+|summary={{{summary|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+{{#if:{{{image|}}}|
+{{!}}-
+{{!}} colspan="2" style="text-align:center" {{!}} [[File:{{{image}}}|250px]]
+}}
+{{#invoke:Place|rows}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+[[Category:Worlds]]
+</includeonly>

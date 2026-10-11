@@ -1,0 +1,74 @@
+<noinclude>
+Infobox and Cargo row for a PF2 heritage, such as Ancient Elf. Create pages with [[Form:Heritage]].
+A heritage with no ancestry is versatile, open to any ancestry.
+Its ancestry's PF2 rules page, such as Elf (PF2), lists it through [[Module:Species]].
+
+{{#cargo_declare:_table=Heritages
+|ancestry=Page
+|rarity=String (allowed values=Common,Uncommon,Rare,Unique)
+|summary=Text
+|ability=Wikitext
+}}
+
+<templatedata>
+{
+	"description": "A PF2 heritage, such as Ancient Elf. Easiest to fill in with the form: Edit with form.",
+	"params": {
+		"ancestry": {
+			"label": "Ancestry",
+			"description": "The species page it belongs to, such as Elf. Empty for a versatile heritage",
+			"type": "wiki-page-name"
+		},
+		"rarity": {
+			"label": "Rarity",
+			"description": "Common, Uncommon, Rare or Unique",
+			"type": "line"
+		},
+		"summary": {
+			"label": "Summary",
+			"description": "One or two sentences shown in the infobox",
+			"type": "string"
+		},
+		"ability": {
+			"label": "Ability",
+			"description": "What the heritage grants. Shown as a section",
+			"type": "content"
+		}
+	},
+	"format": "block",
+	"paramOrder": [
+		"ancestry",
+		"rarity",
+		"summary",
+		"ability"
+	]
+}
+</templatedata>
+</noinclude><includeonly>{{#cargo_store:_table=Heritages
+|ancestry={{{ancestry|}}}
+|rarity={{{rarity|}}}
+|summary={{{summary|}}}
+|ability={{{ability|}}}
+}}
+{| class="wikitable" style="float:right; clear:right; margin:0 0 1em 1em; width:22em"
+|-
+! colspan="2" style="font-size:120%" | {{PAGENAME}}
+|-
+! Ancestry
+| {{#if:{{{ancestry|}}}|[[{{{ancestry}}} (PF2)|{{{ancestry}}}]]|Versatile, any ancestry}}
+{{#if:{{{rarity|}}}|
+{{!}}-
+! Rarity
+{{!}} {{{rarity|}}}
+}}
+{{#if:{{{summary|}}}|
+{{!}}-
+{{!}} colspan="2" {{!}} ''{{{summary}}}''
+}}
+|}
+{{#if:{{{ability|}}}|
+== Ability ==
+{{{ability}}}
+}}
+[[Category:PF2 Heritages]]
+</includeonly>
