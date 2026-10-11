@@ -29,6 +29,7 @@
     group: "{{ ansible_user }}"
     mode: "0755"
   loop: "{{ stack_paths }}"
+  register: stack_copy
 
 # template does not create parent directories, unlike copy.
 - name: Create template directories
@@ -85,3 +86,16 @@
     'Started' in stack_compose_up.stderr
     or 'Created' in stack_compose_up.stderr
     or 'Recreated' in stack_compose_up.stderr
+
+# compose up leaves a container alone when only its bind-mounted files changed.
+# Recreating rather than restarting lets --wait gate on health again.
+- name: Recreate services that read the copied files at start
+  ansible.builtin.command:
+    cmd: >-
+      docker compose up -d --wait --wait-timeout {{ stack_wait_timeout }}
+      --force-recreate --no-deps {{ stack_restart_on_copy | join(' ') }}
+    chdir: "{{ stack_dest }}"
+  when:
+    - not ansible_check_mode
+    - stack_restart_on_copy | length > 0
+    - stack_copy is changed

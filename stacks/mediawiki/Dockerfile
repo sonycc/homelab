@@ -6,6 +6,8 @@ FROM alpine:3.23 AS extensions
 ARG EXT_BRANCH=REL1_43
 # Not a Wikimedia skin, so no REL branch. Requires MediaWiki >= 1.43.
 ARG CITIZEN_TAG=v3.23.0
+# Same publisher as Citizen, also pinned by tag. Requires MediaWiki >= 1.43.
+ARG TABBERNEUE_TAG=v4.1.0
 
 RUN apk add --no-cache git
 
@@ -16,7 +18,10 @@ RUN set -eux; \
       git clone --depth 1 --branch "$EXT_BRANCH" \
         "https://github.com/wikimedia/mediawiki-extensions-$ext.git" "$ext"; \
       rm -rf "$ext/.git"; \
-    done
+    done; \
+    git clone --depth 1 --branch "$TABBERNEUE_TAG" \
+      https://github.com/StarCitizenTools/mediawiki-extensions-TabberNeue.git TabberNeue; \
+    rm -rf TabberNeue/.git
 
 WORKDIR /skins
 

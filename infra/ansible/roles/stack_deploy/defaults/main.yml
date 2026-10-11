@@ -18,3 +18,7 @@ stack_templates: []
 stack_env_src: "{{ stack_src }}/.env"
 
 stack_wait_timeout: 300
+
+# Services to recreate when Copy stack files changes something, for stacks whose
+# containers only read their bind-mounted files at start.
+stack_restart_on_copy: []
