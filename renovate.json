@@ -7,7 +7,22 @@
   "automerge": false,
   "labels": ["image-update"],
   "vulnerabilityAlerts": { "labels": ["security"] },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)docker-compose[^/]*\\.ya?ml$/"],
+      "matchStrings": ["image:\\s*ghcr\\.io/playit-cloud/playit-agent:(?<currentValue>\\S+)"],
+      "depNameTemplate": "playit-cloud/playit-agent",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    }
+  ],
   "packageRules": [
+    {
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["ghcr.io/playit-cloud/playit-agent"],
+      "enabled": false
+    },
     {
       "description": "GitLab and its runner move together",
       "matchPackageNames": ["gitlab/gitlab-ce", "gitlab/gitlab-runner"],
