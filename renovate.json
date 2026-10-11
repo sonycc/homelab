@@ -7,7 +7,22 @@
   "automerge": false,
   "labels": ["image-update"],
   "vulnerabilityAlerts": { "labels": ["security"] },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)docker-compose[^/]*\\.ya?ml$/"],
+      "matchStrings": ["image:\\s*ghcr\\.io/playit-cloud/playit-agent:(?<currentValue>\\S+)"],
+      "depNameTemplate": "playit-cloud/playit-agent",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    }
+  ],
   "packageRules": [
+    {
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["ghcr.io/playit-cloud/playit-agent"],
+      "enabled": false
+    },
     {
       "description": "GitLab and its runner move together",
       "matchPackageNames": ["gitlab/gitlab-ce", "gitlab/gitlab-runner"],
@@ -25,6 +40,12 @@
     {
       "matchPackageNames": ["grafana/grafana-enterprise"],
       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:-security-(?<build>\\d+))?$"
+    },
+    {
+      "description": "MediaWiki stays on LTS: 1.43 patches until 1.47",
+      "matchPackageNames": ["mediawiki"],
+      "allowedVersions": "/^1\\.(43|47)\\.\\d+$/",
+      "separateMinorPatch": true
     },
     {
       "matchPackageNames": ["postgres"],
