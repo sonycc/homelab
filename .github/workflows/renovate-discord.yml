@@ -1,0 +1,22 @@
+name: Renovate to Discord
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  notify:
+    if: github.actor == 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TITLE: ${{ github.event.pull_request.title }}
+          URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          jq -n --arg title "$TITLE" --arg url "$URL" \
+            '{content: "**Image update available** - \($title)\n\($url)"}' \
+          | curl -fsS -H 'Content-Type: application/json' -d @- "$WEBHOOK"

@@ -4,9 +4,6 @@
 x-mediawiki: &mediawiki
   image: homelab/mediawiki
   restart: unless-stopped
-  labels:
-    # Locally built, so there is no registry for WUD to poll.
-    wud.watch: "false"
   networks:
     - homelab
   security_opt:
