@@ -6,7 +6,7 @@
 
 services:
   valheim:
-    image: ghcr.io/community-valheim-tools/valheim-server:1.2.0
+    image: ghcr.io/community-valheim-tools/valheim-server:1.4.0
     container_name: valheim
     restart: unless-stopped
 
@@ -36,10 +36,6 @@ services:
       BEPINEX: "true"
       VALHEIM_MODS: ${VALHEIM_MODS:-}
       POST_BOOTSTRAP_HOOK: /usr/local/bin/install-mods
-      # The image syncs /config/bepinex/plugins only into a plugins directory that exists,
-      # and BepInExPack 5.4.2351 ships without one. plugins_path is the image's own variable,
-      # in scope where it evaluates this hook.
-      PRE_BEPINEX_CONFIG_HOOK: mkdir -p "$$plugins_path"
 
     # Loopback, so the tunnel is the only way in. Set VALHEIM_BIND to the host's
     # LAN address to let players on the network connect direct.
