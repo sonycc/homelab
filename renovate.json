@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 0,
+  "prHourlyLimit": 0,
+  "automerge": false,
+  "labels": ["image-update"],
+  "vulnerabilityAlerts": { "labels": ["security"] },
+  "packageRules": [
+    {
+      "description": "GitLab and its runner move together",
+      "matchPackageNames": ["gitlab/gitlab-ce", "gitlab/gitlab-runner"],
+      "groupName": "gitlab",
+      "labels": ["image-update", "gitlab"]
+    },
+    {
+      "matchPackageNames": ["gitlab/gitlab-ce"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<compatibility>ce)\\.(?<build>\\d+)$"
+    },
+    {
+      "matchPackageNames": ["gitlab/gitlab-runner"],
+      "versioning": "regex:^alpine(?<compatibility>[\\d.]+)-v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
+    },
+    {
+      "matchPackageNames": ["grafana/grafana-enterprise"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:-security-(?<build>\\d+))?$"
+    },
+    {
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}
