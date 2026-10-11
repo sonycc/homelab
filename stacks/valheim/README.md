@@ -130,11 +130,10 @@ Restoring from vm-core instead: the `MANIFEST` beside each archive names the hos
 | Symptom | Cause | Check |
 |---|---|---|
 | Healthy, but never updates, backs up or restarts | `PUID`/`PGID` is not 0, so busybox `crontab` refused the schedules and `valheim-bootstrap` exited 0 regardless | `docker exec valheim crontab -l` — three entries, or this regressed |
-| Players get `incompatible version` | SteamCMD stuck on `state is 0x6`, serving the stale binary while logging that it is current | `docker logs valheim \| grep "Valheim version"` against the client's |
+| Players get `incompatible version` | SteamCMD stuck on `state is 0x6` past the image's own retry, serving the stale binary while logging that it is current | `docker logs valheim \| grep "Valheim version"` against the client's |
 | Tunnel dead, server fine | `docker restart valheim` left playit in a namespace that no longer exists | `docker logs valheim-playit` — `tunnel_count=1` expected |
 | World damaged after a crash | An OOM kill landed mid-save, which `stop_grace_period` cannot help with | Keep `VALHEIM_MEM_LIMIT` at 4g for an explored map |
 | Fresh map after a restore or an `.env` edit | `WORLD_NAME` matches no directory under `worlds_local`, which generates rather than fails | `docker exec valheim ls /config/worlds_local` |
-| Players get `<mod> is not installed on the server` | BepInEx logged `0 plugins to load`: the image skipped the plugin sync, which `PRE_BEPINEX_CONFIG_HOOK` exists to prevent | `docker exec valheim ls /opt/valheim/bepinex/BepInEx/plugins` against `/config/bepinex/plugins` |
 | Backup monitor green, nobody can join | Nothing watches the server itself | By hand — `STATUS_HTTP` serves `/status.json` only for browser-listed servers, which this is not |
 
 A stuck update and a stuck download are the same fix: recreate the container.
