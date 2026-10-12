@@ -24,7 +24,7 @@
 # to `homeassistant:8123`.
 services:
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:2026.7.4
+    image: ghcr.io/home-assistant/home-assistant:2026.10.1
     container_name: homeassistant
     restart: unless-stopped
 
@@ -63,11 +63,6 @@ services:
 
     security_opt:
       - no-new-privileges:true
-
-    # HA publishes floating tags (stable, beta, dev, landingpage) alongside releases;
-    # restrict WUD to real version tags so it only reports genuine upgrades.
-    labels:
-      wud.tag.include: '^\d{4}\.\d+\.\d+$'
 
     deploy:
       resources:

@@ -1,7 +1,7 @@
 # 1.43 LTS, supported to December 2027. A major bump means checking each tag below still supports it.
-ARG MEDIAWIKI_VERSION=1.43.9
+ARG MEDIAWIKI_VERSION=1.43.11
 
-FROM alpine:3.23 AS extensions
+FROM alpine:3.24 AS extensions
 
 # Release tags, not REL branches: these three are versioned across MediaWiki releases,
 # and their REL branches stay frozen at whatever was current when cut.

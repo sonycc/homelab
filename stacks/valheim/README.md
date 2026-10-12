@@ -33,6 +33,24 @@ Worth pinning if people are saving it.
 
 LAN players can skip the tunnel: set `VALHEIM_BIND` to the host's LAN address and connect to `<host>:2456`.
 
+## Mods
+
+`BEPINEX=true` has the image install and update BepInEx, but not mods.
+`install-mods.sh` runs on container start and installs the Thunderstore packages listed in `VALHEIM_MODS` into `/config/bepinex/plugins`.
+A package is downloaded again only when its version changes, and is removed when it is taken off the list.
+
+| Package | Server | Players |
+|---|---|---|
+| [Plant Everything](https://www.nexusmods.com/valheim/mods/1042) | yes | same version |
+| [Stumps Regrow](https://www.nexusmods.com/valheim/mods/2981) | yes | same version |
+| [Plant Easily](https://www.nexusmods.com/valheim/mods/2350) | no — client-only | optional |
+
+Both server mods sync their config to players through ServerSync, so the server's copy decides.
+They write it to `/config/bepinex/` on first start, e.g. `advize.PlantEverything.cfg`.
+
+Versions are pinned and bumping them is manual, like the image tag.
+After a Valheim patch, check that each mod has a compatible release before the server updates itself.
+
 ## Backups
 
 Two layers, for two different failures.
@@ -112,7 +130,7 @@ Restoring from vm-core instead: the `MANIFEST` beside each archive names the hos
 | Symptom | Cause | Check |
 |---|---|---|
 | Healthy, but never updates, backs up or restarts | `PUID`/`PGID` is not 0, so busybox `crontab` refused the schedules and `valheim-bootstrap` exited 0 regardless | `docker exec valheim crontab -l` — three entries, or this regressed |
-| Players get `incompatible version` | SteamCMD stuck on `state is 0x6`, serving the stale binary while logging that it is current | `docker logs valheim \| grep "Valheim version"` against the client's |
+| Players get `incompatible version` | SteamCMD stuck on `state is 0x6` past the image's own retry, serving the stale binary while logging that it is current | `docker logs valheim \| grep "Valheim version"` against the client's |
 | Tunnel dead, server fine | `docker restart valheim` left playit in a namespace that no longer exists | `docker logs valheim-playit` — `tunnel_count=1` expected |
 | World damaged after a crash | An OOM kill landed mid-save, which `stop_grace_period` cannot help with | Keep `VALHEIM_MEM_LIMIT` at 4g for an explored map |
 | Fresh map after a restore or an `.env` edit | `WORLD_NAME` matches no directory under `worlds_local`, which generates rather than fails | `docker exec valheim ls /config/worlds_local` |

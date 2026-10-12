@@ -52,8 +52,6 @@
       stack_name: mediawiki
       stack_paths: [docker-compose.yml, Dockerfile, entrypoint.sh, tasks.sh, config, logo, pages]
       stack_wait_timeout: 600
-      # entrypoint.sh imports pages/ and tasks.sh loops, both only at start.
-      stack_restart_on_copy: [mediawiki, mediawiki-tasks]
       tags: [mediawiki]
 
     # Monitors are templates because they name public hostnames, and the domain is
@@ -68,7 +66,6 @@
         - monitors/registry.toml.j2
         - monitors/grafana.toml.j2
         - monitors/homeassistant.toml.j2
-        - monitors/wud.toml.j2
         - monitors/postgres.toml.j2
         - monitors/vm-core.toml.j2
         - monitors/vm-ci.toml.j2

@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v3.11.3
+    image: prom/prometheus:v3.15.0
     container_name: prometheus
     restart: unless-stopped
     volumes:
@@ -31,6 +31,7 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     restart: unless-stopped
+    init: true
     security_opt:
       - no-new-privileges:true
     cap_add:
@@ -59,7 +60,7 @@ services:
       retries: 3
 
   node-exporter:
-    image: prom/node-exporter:v1.9.1
+    image: prom/node-exporter:v1.12.1
     container_name: node-exporter
     restart: unless-stopped
     command:
@@ -82,9 +83,10 @@ services:
           memory: 32m
 
   grafana:
-    image: grafana/grafana-enterprise:13.0.1-security-01
+    image: grafana/grafana-enterprise:13.2.3
     container_name: grafana
     restart: unless-stopped
+    init: true
     depends_on:
       prometheus:
         condition: service_healthy

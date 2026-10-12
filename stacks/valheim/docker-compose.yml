@@ -6,7 +6,7 @@
 
 services:
   valheim:
-    image: ghcr.io/community-valheim-tools/valheim-server:1.2.0
+    image: ghcr.io/community-valheim-tools/valheim-server:1.4.0
     container_name: valheim
     restart: unless-stopped
 
@@ -32,6 +32,11 @@ services:
       BACKUPS_MAX_AGE: ${BACKUPS_MAX_AGE:-14}
       BACKUPS_MAX_COUNT: ${BACKUPS_MAX_COUNT:-48}
 
+      # The image installs BepInEx but not mods. install-mods fetches those.
+      BEPINEX: "true"
+      VALHEIM_MODS: ${VALHEIM_MODS:-}
+      POST_BOOTSTRAP_HOOK: /usr/local/bin/install-mods
+
     # Loopback, so the tunnel is the only way in. Set VALHEIM_BIND to the host's
     # LAN address to let players on the network connect direct.
     ports:
@@ -47,6 +52,7 @@ services:
       # root can read. Exposing just this subtree lets the homelab pull them over SSH as
       # an ordinary user, and keeps them reachable when the container will not start.
       - ${VALHEIM_BACKUP_DIR:-./backups}:/config/backups
+      - ./install-mods.sh:/usr/local/bin/install-mods:ro
 
     networks:
       - valheim

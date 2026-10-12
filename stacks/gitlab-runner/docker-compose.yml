@@ -10,7 +10,7 @@
 
 services:
   dind:
-    image: docker:29.6.1-dind
+    image: docker:29.9.0-dind
     container_name: dind
     restart: unless-stopped
     privileged: true
@@ -29,7 +29,7 @@ services:
 
   gitlab-runner:
     container_name: gitlab-runner
-    image: gitlab/gitlab-runner:alpine3.21-v19.1.1
+    image: gitlab/gitlab-runner:alpine3.21-v19.4.1
     restart: unless-stopped
 
     depends_on:
