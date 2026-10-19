@@ -6,7 +6,7 @@
 
 services:
   valheim:
-    image: ghcr.io/community-valheim-tools/valheim-server:1.4.0
+    image: ghcr.io/community-valheim-tools/valheim-server:1.4.1
     container_name: valheim
     restart: unless-stopped
 
