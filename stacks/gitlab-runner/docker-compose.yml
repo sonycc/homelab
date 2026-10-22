@@ -10,7 +10,7 @@
 
 services:
   dind:
-    image: docker:29.9.0-dind
+    image: docker:29.9.2-dind
     container_name: dind
     restart: unless-stopped
     privileged: true
