@@ -25,3 +25,16 @@ resource "proxmox_storage_directory" "local" {
   path    = "/var/lib/vz"
   content = ["iso", "vztmpl", "backup", "import", "snippets"]
 }
+
+
+# registry.terraform.io/providers/bpg/proxmox/0.111.1/docs/resources/storage_zfspool
+
+# Created in the UI, not something we created. Import, don't
+# apply fresh:
+#   tofu import proxmox_storage_zfspool.nextcloud_pool nextcloud-pool
+resource "proxmox_storage_zfspool" "nextcloud_pool" {
+  id             = "nextcloud-pool"
+  zfs_pool       = "nextcloud-pool"
+  content        = ["images", "rootdir"]
+  thin_provision = false
+}

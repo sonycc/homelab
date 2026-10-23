@@ -100,3 +100,10 @@ postgres_tenants:
       {{ lookup('ansible.builtin.password',
                 playbook_dir + '/.secrets/mediawiki_db_password',
                 chars='ascii_letters,digits', length=32) }}
+
+  - name: nextcloud
+    dbs: [nextcloud]
+    password: >-
+      {{ lookup('ansible.builtin.password',
+                playbook_dir + '/.secrets/nextcloud_db_password',
+                chars='ascii_letters,digits', length=32) }}
