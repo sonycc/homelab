@@ -34,18 +34,6 @@ locals {
     for name, vm in local.vm_addresses : replace(name, "-", "_")
   ])
 
-  # Rendered into their own group with their own ansible_user. Terraform can only
-  # provision root's key in an LXC — there is no cloud-init to create an admin
-  # account — so these connect as root where the VMs connect as sondre.
-  vps_groups = join("\n\n", [
-    for name, ct in local.ct_addresses :
-    "[${replace(name, "-", "_")}]\n${name} ansible_host=${ct.lan} internal_ip=${ct.internal} vm_id=${ct.vm_id}"
-  ])
-
-  vps_children = join("\n", [
-    for name, ct in local.ct_addresses : replace(name, "-", "_")
-  ])
-
   games_groups = join("\n", [
     for name, alias in var.games :
     "game-${name} ansible_host=${alias}"
@@ -70,8 +58,6 @@ resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/templates/inventory.ini.tftpl", {
     groups                       = local.inventory_groups
     children                     = local.inventory_children
-    vps_groups                   = local.vps_groups
-    vps_children                 = local.vps_children
     ansible_user                 = var.ansible_user
     ansible_ssh_private_key_file = var.ansible_ssh_private_key_file
   })

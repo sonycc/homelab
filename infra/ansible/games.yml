@@ -2,7 +2,7 @@
 #
 #   ansible-playbook games.yml --tags valheim
 #
-# Its own playbook, like vps.yml: stacks.yml targets hosts tofu renders into
+# Its own playbook: stacks.yml targets hosts tofu renders into
 # inventory.ini, and must not fail on a machine we do not control. This one comes from
 # inventory.external.ini, and is kept out of homelab because common.yml and docker.yml
 # target that group.
