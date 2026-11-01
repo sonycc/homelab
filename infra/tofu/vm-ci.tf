@@ -12,10 +12,8 @@ resource "proxmox_virtual_environment_vm" "vm_ci" {
 
   stop_on_destroy = true
 
-  # Mothballed: stopped, disk kept.
-  # To revive, set both to true and uncomment vm-ci in outputs.tf and stacks.yml.
-  started = false
-  on_boot = false
+  started = true
+  on_boot = true
 
   cpu {
     cores = 2

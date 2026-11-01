@@ -22,4 +22,8 @@ if [ ! -f /etc/gitlab-runner/config.toml ]; then
     --docker-volumes      "/certs/client:/certs/client:ro"
 fi
 
+# docs.gitlab.com/runner/configuration/advanced-configuration/#the-global-section
+# Outside the guard, so it also reaches a config.toml registered before this line existed.
+sed -i 's/^concurrent = .*/concurrent = 2/' /etc/gitlab-runner/config.toml
+
 exec gitlab-runner run
