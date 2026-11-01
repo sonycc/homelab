@@ -54,6 +54,14 @@
       stack_wait_timeout: 600
       tags: [mediawiki]
 
+    # stack_wait_timeout is raised because the first boot copies the app and runs the installer.
+    # The data disk must be mounted first by storage.yml, and the postgres role and database must exist.
+    - role: stack_deploy
+      stack_name: nextcloud
+      stack_paths: [docker-compose.yml, hooks]
+      stack_wait_timeout: 600
+      tags: [nextcloud]
+
     # Monitors are templates because they name public hostnames, and the domain is
     # deliberately not in this repo. Needs homelab_domain in group_vars.
     # monitors/ is AutoKuma's source of truth; without it Kuma comes up empty.
@@ -72,6 +80,7 @@
         - monitors/gitlab-backup.toml.j2
         - monitors/game-backup-valheim.toml.j2
         - monitors/mediawiki.toml.j2
+        - monitors/nextcloud.toml.j2
       tags: [uptime]
 
 # Its own play, because a CI job gets root on the Docker daemon that runs it,
