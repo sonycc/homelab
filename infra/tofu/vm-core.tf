@@ -27,6 +27,15 @@ resource "proxmox_virtual_environment_vm" "vm_core" {
     size         = 250
   }
 
+  # Nextcloud user files, mounted at /srv/nextcloud by storage.yml.
+  # The pool is not thin-provisioned, so size must fit what `zfs list nextcloud-pool` reports free.
+  disk {
+    datastore_id = proxmox_storage_zfspool.nextcloud_pool.id
+    interface    = "scsi1"
+    size         = 750
+    discard      = "on"
+  }
+
   network_device {
     bridge   = "vmbr0"
     firewall = true

@@ -1,0 +1,59 @@
+# Formats and mounts the vm-core data disks tofu attaches.
+#
+#   ansible-playbook storage.yml
+
+- name: Data disks on vm-core
+  hosts: vm_core
+  become: true
+
+  vars:
+    nextcloud_disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+    nextcloud_mount: /srv/nextcloud
+
+  tasks:
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/command_module.html
+    # blkid and mkfs rather than community.general.filesystem, to avoid pulling a collection.
+    # blkid exits 2 when the device holds no filesystem.
+    - name: Read the filesystem on the Nextcloud disk
+      ansible.builtin.command: blkid -o value -s TYPE {{ nextcloud_disk }}
+      register: nextcloud_fstype
+      changed_when: false
+      failed_when: nextcloud_fstype.rc not in [0, 2]
+
+    - name: Format the Nextcloud disk
+      ansible.builtin.command: mkfs.ext4 -L nextcloud {{ nextcloud_disk }}
+      when: nextcloud_fstype.stdout == ''
+
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/file_module.html
+    - name: Create the mount point
+      ansible.builtin.file:
+        path: "{{ nextcloud_mount }}"
+        state: directory
+        mode: "0755"
+
+    # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/lineinfile_module.html
+    # nofail, so a missing disk does not drop the VM into emergency mode.
+    - name: Add the Nextcloud disk to fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^LABEL=nextcloud\s'
+        line: "LABEL=nextcloud {{ nextcloud_mount }} ext4 defaults,nofail,discard 0 2"
+
+    - name: Read the current mount
+      ansible.builtin.command: findmnt -n {{ nextcloud_mount }}
+      register: nextcloud_mounted
+      changed_when: false
+      failed_when: false
+
+    - name: Mount the Nextcloud disk
+      ansible.builtin.command: mount {{ nextcloud_mount }}
+      when: nextcloud_mounted.rc != 0
+
+    # www-data in the nextcloud image is uid 33.
+    - name: Create the Nextcloud data directory
+      ansible.builtin.file:
+        path: "{{ nextcloud_mount }}/data"
+        state: directory
+        owner: "33"
+        group: "33"
+        mode: "0770"

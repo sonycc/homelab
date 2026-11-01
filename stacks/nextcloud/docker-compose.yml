@@ -1,0 +1,145 @@
+# Nextcloud on the shared postgres stack.
+# User files live on the nextcloud-pool disk, mounted at /srv/nextcloud by storage.yml.
+# https://github.com/nextcloud/docker
+
+x-nextcloud: &nextcloud
+  image: nextcloud:35.0.2-apache
+  restart: unless-stopped
+  networks:
+    - homelab
+    - nextcloud
+  security_opt:
+    - no-new-privileges:true
+
+x-nextcloud-env: &nextcloud-env
+  TZ: ${TZ:-Europe/Oslo}
+
+  POSTGRES_HOST: postgres
+  POSTGRES_DB: ${NC_DB_NAME:-nextcloud}
+  POSTGRES_USER: ${NC_DB_USER:-nextcloud}
+  POSTGRES_PASSWORD: ${NC_DB_PASSWORD:?NC_DB_PASSWORD not set}
+
+  REDIS_HOST: nextcloud-redis
+
+  NEXTCLOUD_DATA_DIR: /var/www/data
+  NEXTCLOUD_TRUSTED_DOMAINS: ${NC_HOST:?NC_HOST not set}
+
+  # NPM is the only proxy, and it sits on the homelab network.
+  TRUSTED_PROXIES: 172.21.0.0/16
+  APACHE_DISABLE_REWRITE_IP: 1
+  OVERWRITEPROTOCOL: https
+  OVERWRITECLIURL: https://${NC_HOST}
+
+  # Uploads arrive in chunks below Cloudflare's 100 MB request cap, so these only bound a single request.
+  PHP_UPLOAD_LIMIT: 512M
+  PHP_MEMORY_LIMIT: 512M
+
+# create_host_path off, so an unmounted disk fails the start instead of filling the root disk.
+x-nextcloud-data: &nextcloud-data
+  type: bind
+  source: /srv/nextcloud/data
+  target: /var/www/data
+  bind:
+    create_host_path: false
+
+services:
+  nextcloud:
+    <<: *nextcloud
+    container_name: nextcloud
+
+    depends_on:
+      nextcloud-redis:
+        condition: service_healthy
+
+    environment:
+      <<: *nextcloud-env
+      # First-boot install only. Later changes do nothing:
+      #   docker compose exec -u www-data nextcloud php occ user:resetpassword <name>
+      NEXTCLOUD_ADMIN_USER: ${NC_ADMIN_USER:?NC_ADMIN_USER not set}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NC_ADMIN_PASSWORD:?NC_ADMIN_PASSWORD not set}
+
+    volumes:
+      - nextcloud_html:/var/www/html
+      - *nextcloud-data
+      # https://github.com/nextcloud/docker#auto-configuration-via-hook-folders
+      - ./hooks:/docker-entrypoint-hooks.d:ro
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "2.0"
+        reservations:
+          memory: 256m
+
+    # status.php trusts localhost whatever trusted_domains holds.
+    healthcheck:
+      test: ["CMD", "php", "-r", "$$s = json_decode(@file_get_contents('http://127.0.0.1/status.php')); exit($$s && $$s->installed && !$$s->maintenance ? 0 : 1);"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+
+  # https://docs.nextcloud.com/server/latest/admin_manual/configuration_server/background_jobs_configuration.html
+  nextcloud-cron:
+    <<: *nextcloud
+    container_name: nextcloud-cron
+    entrypoint: /cron.sh
+
+    depends_on:
+      nextcloud:
+        condition: service_healthy
+
+    environment:
+      <<: *nextcloud-env
+
+    volumes:
+      - nextcloud_html:/var/www/html
+      - *nextcloud-data
+
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
+        reservations:
+          memory: 64m
+
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q crond /proc/1/cmdline"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+
+  # File locking and memcache.
+  # Its own network, so nothing else on homelab can reach it.
+  nextcloud-redis:
+    image: redis:8.10.2-alpine3.23
+    container_name: nextcloud-redis
+    restart: unless-stopped
+    networks:
+      - nextcloud
+    security_opt:
+      - no-new-privileges:true
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  nextcloud_html:
+
+networks:
+  homelab:
+    external: true
+  nextcloud:
+    internal: true

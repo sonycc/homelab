@@ -1,0 +1,8 @@
+# Rendered by stack_deploy. Edit the .j2, not the file on the VM.
+# Keyword rather than status code: status.php answers 200 during maintenance too.
+type = "keyword"
+name = "Nextcloud"
+url = "https://cloud.{{ homelab_domain }}/status.php"
+keyword = "\"maintenance\":false"
+interval = 60
+max_retries = 3

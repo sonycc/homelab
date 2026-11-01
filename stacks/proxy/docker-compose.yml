@@ -41,6 +41,7 @@ services:
   #   monitoring.${DOMAIN}  → http://grafana:3000
   #   registry.${DOMAIN}    → http://gitlab:5050
   #   ha.${DOMAIN}          → http://homeassistant:8123  (Websockets Support: on)
+  #   cloud.${DOMAIN}       → http://nextcloud:80  (Block Exploits: off, Advanced: no body limit, no request buffering, 300s timeouts)
   #
   # Cloudflare tunnel public hostnames
   # * → http://nginx:80.
