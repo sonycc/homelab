@@ -77,7 +77,7 @@ services:
       start_period: 600s
 
   playit:
-    image: ghcr.io/playit-cloud/playit-agent:1.0.10
+    image: ghcr.io/playit-cloud/playit-agent:1.2.0
     container_name: valheim-playit
     restart: unless-stopped
 
