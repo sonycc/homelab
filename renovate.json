@@ -5,6 +5,8 @@
   "prConcurrentLimit": 0,
   "prHourlyLimit": 0,
   "automerge": false,
+  "timezone": "Europe/Oslo",
+  "schedule": ["* 0-5 * * 1"],
   "labels": ["image-update"],
   "vulnerabilityAlerts": { "labels": ["security"] },
   "customManagers": [
@@ -24,9 +26,18 @@
       "enabled": false
     },
     {
+      "description": "One PR per stack",
+      "matchFileNames": ["stacks/**"],
+      "groupName": "images",
+      "additionalBranchPrefix": "{{parentDir}}-",
+      "commitMessageTopic": "{{parentDir}} images"
+    },
+    {
       "description": "GitLab and its runner move together",
       "matchPackageNames": ["gitlab/gitlab-ce", "gitlab/gitlab-runner"],
       "groupName": "gitlab",
+      "additionalBranchPrefix": "",
+      "commitMessageTopic": "gitlab",
       "labels": ["image-update", "gitlab"]
     },
     {
