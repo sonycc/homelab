@@ -73,6 +73,41 @@ services:
     networks:
       - ci
 
+  # Hourly cleanup of dind's image store.
+  # Plain `volume prune` only removes anonymous volumes,
+  # so the runner's named cache volumes (and the NuGet cache in them) survive.
+  # docs.docker.com/reference/cli/docker/system/prune/
+  dind-prune:
+    image: docker:29.9.2-cli
+    container_name: dind-prune
+    restart: unless-stopped
+
+    depends_on:
+      - dind
+
+    environment:
+      TZ: ${TZ:-Europe/Oslo}
+      DOCKER_HOST: tcp://dind:2376
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_CERT_PATH: /certs/client
+
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          docker container prune -f --filter until=1h
+          docker image prune -af --filter until=24h
+          docker builder prune -af --filter until=24h
+          docker volume prune -f
+          sleep 3600
+        done
+
+    volumes:
+      - dind_certs:/certs:ro
+
+    networks:
+      - ci
+
 volumes:
   dind_certs:
   gitlab_runner_config:
