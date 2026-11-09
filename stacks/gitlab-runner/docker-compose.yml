@@ -10,7 +10,7 @@
 
 services:
   dind:
-    image: docker:29.9.2-dind
+    image: docker:29.9.3-dind
     container_name: dind
     restart: unless-stopped
     privileged: true
@@ -78,7 +78,7 @@ services:
   # so the runner's named cache volumes (and the NuGet cache in them) survive.
   # docs.docker.com/reference/cli/docker/system/prune/
   dind-prune:
-    image: docker:29.9.2-cli
+    image: docker:29.9.3-cli
     container_name: dind-prune
     restart: unless-stopped
 
