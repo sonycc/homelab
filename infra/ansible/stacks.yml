@@ -27,7 +27,7 @@
     # data/ and letsencrypt/ are deliberately absent from stack_paths — runtime state, moved once by hand, not synced on every deploy.
     - role: stack_deploy
       stack_name: proxy
-      stack_paths: [docker-compose.yml, nginx.conf, fail2ban]
+      stack_paths: [docker-compose.yml, server_proxy.conf, fail2ban]
       stack_env_src: "{{ stack_src }}/.env.vm-core"
       tags: [proxy]
 

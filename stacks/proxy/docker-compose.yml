@@ -69,7 +69,13 @@ services:
     volumes:
       - ./data:/data
       - ./letsencrypt:/etc/letsencrypt
-      - ./nginx.conf:/etc/nginx/nginx.conf
+      # NPM's own extension point, rather than an override of the image's
+      # nginx.conf — that file changes between releases and a pinned copy of it
+      # silently desyncs on every image bump.
+      #
+      # Not :ro — the image's s6 `prepare` service chowns /data recursively, and
+      # EROFS there exits 1, which aborts startup before nginx ever binds :81.
+      - ./server_proxy.conf:/data/nginx/custom/server_proxy.conf
 
     # Split-horizon: internal containers (incl. CI job containers via dind) resolve
     # the public hostnames to NPM over the homelab network, so they hit the same
