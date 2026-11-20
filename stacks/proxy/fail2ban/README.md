@@ -7,7 +7,8 @@ Bans abusive clients across every public-facing service in the homelab.
 All public traffic arrives `cloudflared → nginx → service`. By the time a packet
 reaches the host kernel its source address is the cloudflared container
 (`172.21.0.14`); the real client address survives only in the `CF-Connecting-IP`
-header, which `../nginx.conf` promotes to `$remote_addr` via `real_ip_header`.
+header, which `../server_proxy.conf` promotes to `$remote_addr` via
+`real_ip_header`.
 
 A local firewall rule therefore has nothing useful to match on. Bans are written
 as **Cloudflare IP Access Rules** instead, which blocks the client at the edge —
